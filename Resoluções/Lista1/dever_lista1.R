@@ -597,20 +597,184 @@ print(mb)
 # Modelos lineares para comparacão
 # -----------------------------------------------------
 
-
 # ITEM J
+
+# Modelo Linear 1 é simplesmente uma regressão linear normal com x1 e x2 como covariáveis, ajustada no conjunto de treinamento
+
+mod_lin1 <- lm(y ~ x1 + x2, data = dados_train)
+
+summary(mod_lin1)
+
+# nesse caso Yi = Beta Zero + Beta Um * X1 + Beta Dois * X2 + Erro
+# y^ = 21,88 + 1,20 X1 − 4,25 X2
+
+y_hat_lin1 <- predict(mod_lin1, newdata = dados_test)
+
+mse_lin1 <- mean((dados_test$y - y_hat_lin1)^2)
+mse_lin1
+# Deu 134.5856
+
+# Modelo Linear 2 é mais complicado que o primeiro
+# Ele tem componentes quadrticas e um termo que x1 e x2 interagem
+
+# Yi = Beta Zero + Beta Um * X1 + Beta Dois * X2 + Beta Tres * X1^2 + Beta Quatro * X2^2 + Beta Cinco (x1*x2) + Erro
+
+mod_lin2 <- lm(y ~ x1 + x2 + I(x1^2) + I(x2^2) + I(x1*x2), data = dados_train)
+summary(mod_lin2)
+
+y_hat_lin2 <- predict(mod_lin2, newdata = dados_test)
+mse_lin2 <- mean((dados_test$y - y_hat_lin2)^2)
+mse_lin2
+# Deu 93.62245 
+
+# MSE da rede neural
+# Soma de (Y teste - Y predito)^2 dividido por n
+# Usando a função mean
+
+mse_rna <- mean((dados_test$y - best_y_hat_test)^2)
+mse_rna
+# Deu 172.4924 
+
+# O menor erro quadratico medio é o do modelo 2
+# A rede neural foi incapaz de abstrair o modelo original nessa arquitetura
+# O melhor modelo para previsão seria o modelo linear 2
+# Apesar de que o modelo 1 já foi melhor do que a rede neural, sendo um modelo mais simples e tudo mais
 
 # -----------------------------------------------------
 
 # ITEM K
+# Efeito da variação de X1
+
+# meu modelo 1 é
+# y^ = 21,88 + 1,20 X1 − 4,25 X2
+
+# vou pegar todos os x1 de teste e adicionar 1
+dados_test_x1_up <- dados_test
+dados_test_x1_up$x1 <- dados_test_x1_up$x1 + 1
+
+# MODELO 1
+# fazer uma nova predição
+y_hat_x1_up <- predict(mod_lin1, newdata = dados_test_x1_up)
+
+# e comparar com a antiga
+y_hat_base <- predict(mod_lin1, newdata = dados_test)
+
+# vou dar summary nos dois resultados
+summary(y_hat_x1_up)
+summary(y_hat_base)
+
+# na média, o resultado do y resultante quando eu adiciono uma unidade em x1 é de cerca de 1.2
+# 23,018 - 21,815 ~= 1,2
+# O que faz sentido dado a equação do modelo 1
+
+# fazer uma nova predição
+y_hat_x1_up <- predict(mod_lin2, newdata = dados_test_x1_up)
+
+# e comparar com a antiga
+y_hat_base <- predict(mod_lin2, newdata = dados_test)
+
+# vou dar summary nos dois resultados
+summary(y_hat_x1_up)
+summary(y_hat_base)
+
+# tá dando na mesma...
 
 # -----------------------------------------------------
 
 # ITEM L
 
+# "Novamente, para cada um dos 3 modelos em estudo, calcule o percentual de vezes que o intervalo 
+# de confiança de 95% (para uma nova observação!) capturou o valor de yi."
+
+
+pred_ic_mod1 <- predict(
+  mod_lin1,
+  newdata = dados_test,
+  interval = "prediction",
+  level = 0.95
+)
+
+pred_ic_mod2 <- predict(
+  mod_lin2,
+  newdata = dados_test,
+  interval = "prediction",
+  level = 0.95
+)
+
+# é uma matriz com o resultado, o "upr" e o "lwr" "bounds"
+
+inside_mod1 <- dados_test$y >= pred_ic_mod1[, "lwr"] &
+  dados_test$y <= pred_ic_mod1[, "upr"]
+
+inside_mod2 <- dados_test$y >= pred_ic_mod2[, "lwr"] &
+  dados_test$y <= pred_ic_mod2[, "upr"]
+
+
+proporcao_true_mod1 <- sum(inside_mod1) / length(inside_mod1)
+proporcao_true_mod1
+# 0,9588
+
+proporcao_true_mod2 <- sum(inside_mod2) / length(inside_mod2)
+proporcao_true_mod2
+# 0,9668
+
+# agora a rede neural
+# sigma_chapeu = raiz quadrada do mse
+
+sigma_hat <- sqrt(mse_rna)
+
+z <- qnorm(0.975) 
+
+# agora os bounds são essas variações dos resultados da rede
+# df_test tem os resultado da rna
+
+lwr <- df_test$y_hat - z * sigma_hat
+upr <- df_test$y_hat + z * sigma_hat
+
+inside_rna <- (df_test$y >= lwr) & (df_test$y <= upr)
+
+
+proporcao_true_rna <- sum(inside_rna) / length(inside_rna)
+proporcao_true_rna
+# 0,9681
+
 # -----------------------------------------------------
 
 # ITEM M
+
+# matriz de predições, modelo 1 nos dados de teste
+pred_ic <- predict(
+  mod_lin1,
+  newdata = dados_test,
+  interval = "confidence",
+  level = 0.95
+)
+
+# disso sai o y predito, o "lwr" e o "upr". São os limites superiores e inferiores
+
+# ai eu pego os intervalos do intervalo de confiança
+# intervalo superior e inferior
+inside_ic <- dados_test$y >= pred_ic[, "lwr"] &
+  dados_test$y <= pred_ic[, "upr"]
+
+
+# tipo o item H, mas eu vou ajustar os valores
+plot(dados_test$x1, dados_test$x2,
+     col = ifelse(inside_ic, "green", "red"),
+     pch = 16,
+     xlab = "x1",
+     ylab = "x2",
+     main = "Dispersão x1 vs x2 — Conjunto de Teste. Modelo Linear 1.")
+
+legend("topright",
+       legend = c("Dentro do IC (95%)", "Fora do IC (95%)"),
+       col = c("green", "red"),
+       pch = 16)
+
+
+# Para um intervalo de confiança de 95%, a grande maioria das observações não foram satisfatórias.
+# o intervalo de confiança avalia a incerteza da média condicional estimada e não a variabilidade total das observações individuais. 
+# Mesmo com bom MSE, os intervalos de confiança são naturalmente estreitos e não englobam a maior parte dos valores observados.
 
 # -----------------------------------------------------
 
