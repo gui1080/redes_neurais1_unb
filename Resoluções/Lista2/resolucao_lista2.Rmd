@@ -1,0 +1,347 @@
+---
+title: "Resolução da Lista 2"
+output: html_document
+---
+
+Aprendi que o R Markdown existe! A Lista 1 é um arquivo bruto em R infelizmente.
+
+Para a Lista 2, preciso de tudo de antes da Lista 1!
+
+Passar a limpo as coisas da lista 1 para esse markdown me ajudou a identificar alguns erros na minha implementação. Voltei e arrumei eles, aparentemente.
+
+Lição aprendida, R Markdown é ótimo!
+
+```{r}
+
+library(latex2exp)
+library(NeuralNetTools)
+library(tidyverse)
+library(microbenchmark)
+```
+
+```{r}
+
+### Arquitetura da RNA (como dado na lista de exercícios)
+par(mar=c(0, 0, 0, 0))
+wts_in <- rep(1, 9)
+struct <- c(2, 2, 1) # dois inputs, dois neurônios escondidos e um otput
+plotnet(wts_in, struct = struct,
+        x_names="", y_names="",
+        node_labs=F, rel_rsc=.7)
+aux <- list(
+  x=c(-.8, -.8, 0, 0, .8, rep(-.55, 4), -.12, -0.06, .38, .38, .7),
+  y=c(.73, .28, .73, .28, .5, .78, .68, .48, .32, .88, .5, .68, .44, .7),
+  rotulo=c("x_1", "x_2", "h_1", "h_2", "\\hat{y}", paste0("w_", 1:4),
+           "b_1", "b_2", "w_5", "w_6", "b_3")
+)
+walk(transpose(aux), ~ text(.$x, .$y,
+                            TeX(str_c("$", .$rotulo, "$")), cex=.8))
+
+```
+
+Dados da questão
+
+```{r}
+
+# Como dado na questão
+
+set.seed(1.2026)
+
+m.obs <- 100000
+
+dados <- tibble(
+  x1 = runif(m.obs, -3, 3),
+  x2 = runif(m.obs, -3, 3)
+) %>%
+  mutate(
+    mu = abs(x1^3 - 30*sin(x2) + 10),
+    y  = rnorm(m.obs, mean = mu, sd = 1)
+  )
+
+# "primeiras 80.000 amostras componham o conjunto de treinamento"
+dados_train <- dados[1:80000, ]
+
+# próximas 10.000 o de validação
+dados_val   <- dados[80001:90000, ]
+
+# últimas 10.000 o de teste
+dados_test  <- dados[90001:100000, ]
+
+sigmoid <- function(z) {
+  1 / (1 + exp(-z))
+}
+```
+
+```{r}
+
+# Função predict da rede
+# calcula um y_chapeu dado x, pesos e bias
+predict_nn <- function(x, pesos, bias) {
+  
+  # desempacotar pesos
+  w1 <- pesos[1]; w2 <- pesos[2]
+  w3 <- pesos[3]; w4 <- pesos[4]
+  w5 <- pesos[5]; w6 <- pesos[6]
+  
+  # desempacotar bias
+  b1 <- bias[1]; b2 <- bias[2]; b3 <- bias[3]
+  
+  # funcão y_chapeu
+  a1 <- x[1]*w1 + x[2]*w3 + b1
+  a2 <- x[1]*w2 + x[2]*w4 + b2
+  
+  h1 <- sigmoid(a1)
+  h2 <- sigmoid(a2)
+  
+  y_chapeu <- h1*w5 + h2*w6 + b3
+  
+  return(list(
+    y_chapeu = y_chapeu,
+    h1    = h1,
+    h2    = h2, 
+    a1    = a1, 
+    a2    = a2
+  ))
+  
+}
+
+# w1, w2, ..., w9
+pesos_iniciais <- rep(0.1, 6)
+
+# b1, b2, b3
+bias_iniciais <- rep(0.1, 3)
+
+# vetor de input x: 1, 1
+x <- c(1, 1)
+
+result_forward <- predict_nn(x, pesos = pesos_iniciais, bias = bias_iniciais)
+y_chapeu <- result_forward$y_chapeu
+```
+
+```{r}
+
+# o gradiente calcula isso do passo anterior
+# faz a derivada
+# atualiza peso e bias
+
+grad_nn <- function(pesos, bias, X, y) {
+  
+  out <- predict_nn(X, pesos, bias)
+  y_chapeu <- out$y_chapeu
+  
+  h1 <- out$h1 # valor na rede - h1
+  h2 <- out$h2 # valor na rede - h2
+  
+  # as partes de y_chapeu
+  a1 <- out$a1 # x[1]*w1 + x[2]*w3 + b1
+  a2 <- out$a2 # x[1]*w2 + x[2]*w4 + b2
+  
+  x1 <- X[, 1]
+  x2 <- X[, 2]
+  
+  # BACKWARD (uma vez só)
+  delta3 <- 2 * (y_chapeu - y)                 
+  
+  dw5 <- mean(delta3 * h1)
+  dw6 <- mean(delta3 * h2)
+  db3 <- mean(delta3)
+  
+  delta1 <- delta3 * pesos[5] * h1 * (1 - h1)    
+  delta2 <- delta3 * pesos[6] * h2 * (1 - h2)     
+  
+  dw1 <- mean(delta1 * x1)
+  dw3 <- mean(delta1 * x2)
+  db1 <- mean(delta1)
+  
+  dw2 <- mean(delta2 * x1)
+  dw4 <- mean(delta2 * x2)
+  db2 <- mean(delta2)
+  
+  list(
+    grad_pesos = c(dw1, dw2, dw3, dw4, dw5, dw6),
+    grad_bias  = c(db1, db2, db3),
+    cache = list(y_chapeu = y_chapeu, h1 = h1, h2 = h2, a1 = a1, a2 = a2)
+  )
+}
+
+# w1, w2, ..., w9
+pesos_iniciais <- rep(0.1, 6)
+
+# b1, b2, b3
+bias_iniciais <- rep(0.1, 3)
+
+# dados de treino
+X_train <- as.matrix(dados_train[, c("x1", "x2")])
+
+# Outputs de treino para aplicar no erro quadratico medio
+y_treino <- dados_train$y
+
+# teste
+g <- grad_nn(pesos_iniciais, bias_iniciais, X_train, y_treino)
+print(g)
+```
+
+```{r}
+
+# aqui se calcula o erro quadratico médio entre y real e y previsto no predict
+custo_nn <- function(pesos_custo, bias_custo, X, y) {
+  res <- apply(X, 1, predict_nn, pesos = pesos_custo, bias = bias_custo)
+  y_chapeu <- sapply(res, `[[`, "y_chapeu") 
+  mean((y - y_chapeu)^2)
+}
+```
+
+```{r}
+
+# Herdando do ITEM E
+
+# Aplicar o método de gradiente com
+# taxa de aprendizagem = 0.1
+# 100 iteraões minimizando a funcão de custo
+
+# a atualizacão dos pesos/bias é dado por
+# pesos = pesos - * (taxa_aprendizagem * gradiente_pesos)
+# bias = bias - * (taxa_aprendizagem * gradiente_bias)
+
+X_treino <- as.matrix(dados_train[, c("x1","x2")])
+y_treino <- dados_train$y
+
+X_val <- as.matrix(dados_val[, c("x1","x2")])
+y_val <- dados_val$y
+ 
+X_teste <- as.matrix(dados_test[, c("x1","x2")])
+y_teste <- dados_test$y
+
+eps <- 0.1
+n_iter <- 100
+
+pesos <- rep(0, 6)
+bias  <- rep(0, 3)
+
+hist_train <- numeric(n_iter)
+hist_val   <- numeric(n_iter)
+ 
+best_val <- Inf
+best_iter <- NA
+best_pesos <- NULL
+best_bias  <- NULL
+ 
+# wrapper par prever em um dataset X (matriz n×2)
+pred_y_chapeu <- function(X, pesos, bias) {
+  out <- lapply(1:nrow(X), function(i) predict_nn(X[i, ], pesos = pesos, bias = bias))
+  sapply(out, `[[`, "y_chapeu")  # vetor numérico (n)
+}
+ 
+for (t in 1:n_iter) {
+   
+  # correção lista 1
+  x_i <- X_treino[t, , drop = FALSE]
+  
+  x_i_val <- X_val[t, , drop = FALSE]
+  
+  y_treino_i <- y_treino[t]
+  y_val_i <- y_val[t]
+  
+  # gradiente no treino
+  g <- grad_nn(pesos, bias, x_i, y_treino_i)
+     
+  # atualização (descida)
+  pesos <- pesos - eps * g$grad_pesos
+  bias  <- bias  - eps * g$grad_bias
+     
+  # custos (para monitorar)
+  hist_train[t] <- custo_nn(pesos, bias, x_i, y_treino_i)
+  
+  # na nova implementação não precisa calcular isso
+  # mas deixa
+  hist_val[t]   <- custo_nn(pesos, bias, x_i_val, y_val_i)
+     
+  # melhor validação
+  if (hist_val[t] < best_val) {
+    best_val <- hist_val[t]
+    best_iter <- t
+    best_pesos <- pesos
+    best_bias  <- bias
+  }
+     
+  #print(t)
+  # vou dar predict para pegar o y_chapeu
+  best_y_hat_test <- pred_y_chapeu(X_teste, best_pesos, best_bias)
+}
+ 
+
+# dai aqui é os resultados da questão
+best_val # melhor resultado de custo foi 1.79
+best_iter # melhor iteracão foi a 3 (eita ta certo isso)
+best_pesos # 1.045710  1.045710 -3.599251 -3.599251  4.568202  4.568202
+best_bias # 3.698907 3.698907 9.809250
+```
+
+```{r}
+
+# se tudo deu certo, essas dimensões aqui batem
+
+length(best_y_hat_test) == nrow(X_teste)
+```
+
+```{r}
+
+# resultado final do treino
+df_test <- dados_test %>%
+  mutate(
+    y_hat = best_y_hat_test,
+    resid = y - y_hat
+  )
+
+ggplot(df_test, aes(x = y_hat, y = y)) +
+  geom_point(alpha = 0.35, size = 1) +
+  geom_abline(intercept = 0, slope = 1,
+              colour = "red", linetype = "dashed", linewidth = 1) +
+  labs(
+    x = expression(hat(y)),
+    y = "y observado",
+    title = "Valores observados vs. valores previstos (teste)"
+  )
+
+```
+
+```{r}
+
+plot(
+  hist_train,
+  type = "l",
+  lwd = 2,
+  col = "blue",
+  xlab = "Iteração",
+  ylab = "Custo (MSE)",
+  ylim = range(c(hist_train, hist_val)),
+  main = "Custo no treino e validação"
+)
+
+lines(
+  hist_val,
+  lwd = 2,
+  col = "red",
+  lty = 2
+)
+
+legend(
+  "topright",
+  legend = c("Treino", "Validação"),
+  col = c("blue", "red"),
+  lwd = 2,
+  lty = c(1, 2),
+  bty = "n"
+)
+
+```
+
+# Agora começa a lista 2 de verdade
+
+## Questão a - droupout na camada intermediária e de entrada
+
+```{r}
+
+aa
+
+```
