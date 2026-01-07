@@ -337,18 +337,29 @@ pred_y_chapeu <- function(X, pesos, bias) {
 }
  
 for (t in 1:n_iter) {
-   
+  
+  # correção lista 1
+  x_i <- X_treino[t, , drop = FALSE]
+  
+  x_i_val <- X_val[t, , drop = FALSE]
+  
+  y_treino_i <- y_treino[t]
+  y_val_i <- y_val[t]
+  
   # gradiente no treino
-  g <- grad_nn(pesos, bias, X_treino, y_treino)
-     
+  g <- grad_nn(pesos, bias, x_i, y_treino_i)
+  
   # atualização (descida)
   pesos <- pesos - eps * g$grad_pesos
   bias  <- bias  - eps * g$grad_bias
-     
+  
   # custos (para monitorar)
-  hist_train[t] <- custo_nn(pesos, bias, X_treino, y_treino)
-  hist_val[t]   <- custo_nn(pesos, bias, X_val, y_val)
-     
+  hist_train[t] <- custo_nn(pesos, bias, x_i, y_treino_i)
+  
+  # na nova implementação não precisa calcular isso
+  # mas deixa
+  hist_val[t]   <- custo_nn(pesos, bias, x_i_val, y_val_i)
+  
   # melhor validação
   if (hist_val[t] < best_val) {
     best_val <- hist_val[t]
@@ -356,12 +367,11 @@ for (t in 1:n_iter) {
     best_pesos <- pesos
     best_bias  <- bias
   }
-     
+  
   #print(t)
   # vou dar predict para pegar o y_chapeu
   best_y_hat_test <- pred_y_chapeu(X_teste, best_pesos, best_bias)
 }
- 
 
 # dai aqui é os resultados da questão
 best_val # melhor resultado de custo foi 1.79
@@ -502,8 +512,6 @@ ggplot(df_test, aes(x = x1, y = x2)) +
 # Bordas do domínio: maior erro sistemático.
 
 # Isso confirma um viés estrutural na rede descrita
-
-
 # me parece fazer sentido sim.
 
 # -----------------------------------------------------
