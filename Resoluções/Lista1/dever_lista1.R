@@ -6,6 +6,10 @@
 # Matéria de Semestre 2024/01
 # Feito no final de 2025 para estudo pessoal
 
+# Os dados que eu anotei nos comentários sobre dados podem não estar corretos
+# por conta de correções nessa implementação que eu fiz na Lista 2.
+# Mas as análises estão ok.
+
 # https://github.com/janishar/mit-deep-learning-book-pdf
 
 # Dependências
@@ -347,11 +351,11 @@ for (t in 1:n_iter) {
   bias  <- bias  - eps * g$grad_bias
   
   # custos (para monitorar)
-  hist_train[t] <- custo_nn(pesos, bias, X_treino, y_treino_i)
+  hist_train[t] <- custo_nn(pesos, bias, X_treino, y_treino)
   
   # na nova implementação não precisa calcular isso
   # mas deixa
-  hist_val[t]   <- custo_nn(pesos, bias, X_val, y_val_i)
+  hist_val[t]   <- custo_nn(pesos, bias, X_val, y_val)
   
   # melhor validação
   if (hist_val[t] < best_val) {
@@ -367,10 +371,10 @@ for (t in 1:n_iter) {
 }
 
 # dai aqui é os resultados da questão
-best_val # melhor resultado de custo foi 1.79
-best_iter # melhor iteracão foi a 3 (eita ta certo isso)
-best_pesos # 1.045710  1.045710 -3.599251 -3.599251  4.568202  4.568202
-best_bias # 3.698907 3.698907 9.809250
+best_val 
+best_iter 
+best_pesos 
+best_bias 
 
 length(best_y_hat_test) == nrow(X_teste)
 
