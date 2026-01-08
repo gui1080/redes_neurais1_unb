@@ -305,11 +305,11 @@ for (t in 1:n_iter) {
   bias  <- bias  - eps * g$grad_bias
      
   # custos (para monitorar)
-  hist_train[t] <- custo_nn(pesos, bias, x_i, y_treino_i)
+  hist_train[t] <- custo_nn(pesos, bias, X_treino, y_treino)
   
   # na nova implementação não precisa calcular isso
   # mas deixa
-  hist_val[t]   <- custo_nn(pesos, bias, x_i_val, y_val_i)
+  hist_val[t]   <- custo_nn(pesos, bias, X_val, y_val)
      
   # melhor validação
   if (hist_val[t] < best_val) {
@@ -326,10 +326,10 @@ for (t in 1:n_iter) {
  
 
 # dai aqui é os resultados da questão
-best_val # melhor resultado de custo foi 1.79
-best_iter # melhor iteracão foi a 3 (eita ta certo isso)
-best_pesos # 1.045710  1.045710 -3.599251 -3.599251  4.568202  4.568202
-best_bias # 3.698907 3.698907 9.809250
+best_val
+best_iter
+best_pesos
+best_bias 
 ```
 
 ```{r}
@@ -352,13 +352,15 @@ ggplot(df_test, aes(x = y_hat, y = y)) +
   geom_point(alpha = 0.35, size = 1) +
   geom_abline(intercept = 0, slope = 1,
               colour = "red", linetype = "dashed", linewidth = 1) +
+  coord_cartesian(xlim = range(df_test$y_hat) + c(-0.1, 0.1)) +
   labs(
     x = expression(hat(y)),
     y = "y observado",
-    title = "Valores observados vs. valores previstos (teste)"
+    title = "Valores observados vs. valores previstos (Rede com Dropout)"
   )
-
 ```
+
+Os valores estão picotados entre 10 e 22.
 
 ```{r}
 
@@ -393,7 +395,9 @@ legend(
 
 # Agora começa a lista 2 de verdade
 
-## Questão a - droupout na camada intermediária e de entrada
+# Questão 1 
+
+## Item a - droupout na camada intermediária e de entrada
 
 ```{r}
 
@@ -590,18 +594,24 @@ hist_train <- numeric(n_iter)
 
 for (t in 1:n_iter) {
   
-  # FALTA EU REAMOSTRAR AS MASKS A CADA ITERAÇÃO
-
-  # 1) gradiente no treino (full GD, usa máscara inteira n×2)
+  # gradiente no treino (full GD, usa máscara inteira n×2)
   g <- grad_nn_dropout(pesos, bias, X_treino_drop, y_treino, mask_hid)
 
-  # 2) atualização
+  # atualização
   pesos <- pesos - eps * g$grad_pesos
   bias  <- bias  - eps * g$grad_bias
 
-  # 3) custo no treino (MSE médio com dropout na oculta)
+  # custo no treino (MSE médio com dropout na oculta)
   yhat_train <- predict_nn_dropout(X_treino_drop, pesos, bias, mask_hid)$y_chapeu
   hist_train[t] <- mean((y_treino - yhat_train)^2)
+  
+  # gerando a mascara nova
+  mask_in  <- matrix(rbinom(n*2, size = 1, prob = p), n, 2)
+  mask_hid <- matrix(rbinom(n*H, size = 1, prob = p), n, H)
+
+  # atualizando o X_treino no input
+  X_treino_drop <- X_treino * mask_in
+  
 }
 
 # ---------- INFERÊNCIA CORRETA (weight scaling rule) ----------
@@ -611,24 +621,11 @@ pesos_ws <- pesos
 pesos_ws[5] <- p * pesos[5]
 pesos_ws[6] <- p * pesos[6]
 
-# predictor SEM dropout (necessário para inferência)
-predict_nn <- function(X, pesos, bias) {
-  x1 <- X[, 1]
-  x2 <- X[, 2]
+# inferencia de y_chapeu no datasei inteiro
+best_y_hat_test <- pred_y_chapeu(X_teste, pesos_ws, bias)
 
-  a1 <- x1*pesos[1] + x2*pesos[3] + bias[1]
-  a2 <- x1*pesos[2] + x2*pesos[4] + bias[2]
-
-  h1 <- sigmoid(a1)
-  h2 <- sigmoid(a2)
-
-  h1*pesos[5] + h2*pesos[6] + bias[3]
-}
-
-best_y_hat_test <- predict_nn(X_teste, pesos_ws, bias)
+# conferindo se o tamanho ta certo
 stopifnot(length(best_y_hat_test) == nrow(X_teste))
-
-
 ```
 
 ```{r}
@@ -657,6 +654,8 @@ ggplot(df_test, aes(x = y_hat, y = y)) +
 
 ```
 
+Entre 19 e 30.
+
 ```{r}
 
 plot(
@@ -677,3 +676,37 @@ legend(
 )
 
 ```
+
+Temos uma interpretação possível entre a rede com e sem dropout.
+
+Na rede com dropout os pontos estão mais espalhados ao redor da linha pontilhada, e não em baixo dela. Está mais de acordo com a linha de tendência.
+
+Viés maior, menos variância. Menos concentração nas bordas. O dropout foi um tipo de regularizador nesse experimento. Menos "overfitting local" dessa forma.
+
+## Item B - Gerando resultados de y_chapeu
+
+```{r}
+
+a
+
+```
+
+```{r}
+
+a
+
+```
+
+## Item C
+
+```{r}
+
+```
+
+## Item D
+
+```{r}
+
+```
+
+# Questão 2
