@@ -426,8 +426,8 @@ A lógica é que no loop de treino da rede a gente vai dropar uns valores interm
 # Função predict da rede
 # calcula um y_chapeu dado x, pesos e bias
 predict_nn_dropout <- function(X, pesos, bias, mask_hid) {
-  stopifnot(is.matrix(X), ncol(X) == 2)
-  stopifnot(is.matrix(mask_hid), nrow(mask_hid) == nrow(X), ncol(mask_hid) == 2)
+  #stopifnot(is.matrix(X), ncol(X) == 2)
+  #stopifnot(is.matrix(mask_hid), nrow(mask_hid) == nrow(X), ncol(mask_hid) == 2)
 
   # desempacotar pesos
   w1 <- pesos[1]; w2 <- pesos[2]
@@ -687,17 +687,124 @@ Viés maior, menos variância. Menos concentração nas bordas. O dropout foi um
 
 ```{r}
 
-a
+print(pesos)
+print(bias)
+```
+
+```{r}
+
+predict_nn_dropout_para_x_unico <- function(X, pesos, bias, mask_hid) {
+  
+  # desempacotar pesos
+  w1 <- pesos[1]; w2 <- pesos[2]
+  w3 <- pesos[3]; w4 <- pesos[4]
+  w5 <- pesos[5]; w6 <- pesos[6]
+
+  # desempacotar bias
+  b1 <- bias[1]; b2 <- bias[2]; b3 <- bias[3]
+
+  x1 <- X[1]
+  x2 <- X[2]
+
+  # pré-ativações (vetores n)
+  a1 <- x1*w1 + x2*w3 + b1
+  a2 <- x1*w2 + x2*w4 + b2
+
+  # ativações antes do dropout
+  s1 <- sigmoid(a1)
+  s2 <- sigmoid(a2)
+
+  # aplica dropout na camada oculta (element-wise por observação)
+  h1 <- s1 * mask_hid[1]
+  h2 <- s2 * mask_hid[2]
+
+  # saída (vetor n)
+  y_chapeu <- h1*w5 + h2*w6 + b3
+
+  list(
+    y_chapeu = y_chapeu,  # length n
+    h1 = h1, h2 = h2,     # length n (já dropados)
+    a1 = a1, a2 = a2,     # length n
+    s1 = s1, s2 = s2      # length n (pré-dropout) -> útil no backprop
+  )
+}
 
 ```
 
 ```{r}
 
-a
+# para A PRIMEIRA observação do conjunto de teste
+# Eu gero 200 sub redes com mascaras aleatórias
+# Amostro um y_chapeu pra cada caso desses (200)
+# Entendi q não vou fazer weight scaling
+
+n_iter <- 200
+
+mask_hid <- matrix(rbinom(n*H, size = 1, prob = p), n, H)
+mask_hid <- c(mask_hid[1, 1], mask_hid[1, 2])
+
+x <- c(X_teste[1, 1], X_teste[1, 2])
+
+hist_y_chapeu <- numeric(n_iter)
+
+for (t in 1:n_iter) {
+  
+  # pego o resultado considerando
+  # a primeira observação apenas
+  # mas com outra sub rede amostrada com um mask_hid unico 
+  result_forward <- predict_nn_dropout_para_x_unico(x, pesos, bias, mask_hid)$y_chapeu
+  
+  hist_y_chapeu[t] <- result_forward
+  
+  # gerando a mascara nova
+  mask_hid <- c(rbinom(H, size = 1, prob = p))
+}
+
+```
+
+```{r}
+
+# estimativa pontual
+y_hat_point <- mean(hist_y_chapeu)
+
+# intervalo de confiança empírico 95%
+IC_95 <- quantile(hist_y_chapeu, probs = c(0.025, 0.975))
+
+print(IC_95)
+```
+
+```{r}
+
+# histograma
+hist(
+  hist_y_chapeu,
+  breaks = 30,
+  col = "lightgray",
+  border = "white",
+  main = "Distribuição da previsão de y_chapeu 1",
+  xlab = expression(hat(y))
+)
+
+# linha da estimativa pontual
+abline(v = y_hat_point, col = "red", lwd = 2)
+
+# linhas do intervalo de confiança
+abline(v = IC_95, col = "blue", lwd = 2, lty = 2)
+
+legend(
+  "topright",
+  legend = c("Estimativa pontual", "IC 95%"),
+  col = c("red", "blue"),
+  lwd = 2,
+  lty = c(1, 2),
+  bty = "n"
+)
 
 ```
 
 ## Item C
+
+Repetir o procedimento anterior para todos os X de Teste
 
 ```{r}
 
