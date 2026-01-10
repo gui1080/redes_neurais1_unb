@@ -3,6 +3,8 @@ title: "Resolução da Lista 2"
 output: html_document
 ---
 
+# Recapitulando
+
 Aprendi que o R Markdown existe! A Lista 1 é um arquivo bruto em R infelizmente.
 
 Para a Lista 2, preciso de tudo de antes da Lista 1!
@@ -71,68 +73,6 @@ sigmoid <- function(z) {
   1 / (1 + exp(-z))
 }
 ```
-
-\# Função predict da rede
-
-\# calcula um y_chapeu dado x, pesos e bias
-
-predict_nn \<- function(x, pesos, bias) {
-
-\# desempacotar pesos
-
-w1 \<- pesos[1]; w2 \<- pesos[2]
-
-w3 \<- pesos[3]; w4 \<- pesos[4]
-
-w5 \<- pesos[5]; w6 \<- pesos[6]
-
-\# desempacotar bias
-
-b1 \<- bias[1]; b2 \<- bias[2]; b3 \<- bias[3]
-
-\# funcão y_chapeu
-
-a1 \<- x[1]\*w1 + x[2]\*w3 + b1
-
-a2 \<- x[1]\*w2 + x[2]\*w4 + b2
-
-h1 \<- sigmoid(a1)
-
-h2 \<- sigmoid(a2)
-
-y_chapeu \<- h1\*w5 + h2\*w6 + b3
-
-return(list(
-
-y_chapeu = y_chapeu,
-
-h1 = h1,
-
-h2 = h2,
-
-a1 = a1,
-
-a2 = a2
-
-))
-
-}
-
-\# w1, w2, ..., w9
-
-pesos_iniciais \<- rep(0.1, 6)
-
-\# b1, b2, b3
-
-bias_iniciais \<- rep(0.1, 3)
-
-\# vetor de input x: 1, 1
-
-x \<- c(1, 1)
-
-result_forward \<- predict_nn(x, pesos = pesos_iniciais, bias = bias_iniciais)
-
-y_chapeu \<- result_forward\$y_chapeu
 
 ```{r}
 
@@ -356,7 +296,7 @@ ggplot(df_test, aes(x = y_hat, y = y)) +
   labs(
     x = expression(hat(y)),
     y = "y observado",
-    title = "Valores observados vs. valores previstos (Rede com Dropout)"
+    title = "Valores observados vs. valores previstos"
   )
 ```
 
@@ -395,9 +335,11 @@ legend(
 
 # Agora começa a lista 2 de verdade
 
-# Questão 1 
+# Questão 1
 
-## Item a - droupout na camada intermediária e de entrada
+## Item A
+
+droupout na camada intermediária e de entrada
 
 ```{r}
 
@@ -614,8 +556,7 @@ for (t in 1:n_iter) {
   
 }
 
-# ---------- INFERÊNCIA CORRETA (weight scaling rule) ----------
-
+# weight scaling rule
 # Dropout desligado no teste, com pesos escalados por p na camada seguinte
 pesos_ws <- pesos
 pesos_ws[5] <- p * pesos[5]
@@ -683,7 +624,9 @@ Na rede com dropout os pontos estão mais espalhados ao redor da linha pontilhad
 
 Viés maior, menos variância. Menos concentração nas bordas. O dropout foi um tipo de regularizador nesse experimento. Menos "overfitting local" dessa forma.
 
-## Item B - Gerando resultados de y_chapeu
+## Item B
+
+Gerando resultados de y_chapeu
 
 ```{r}
 
@@ -808,12 +751,729 @@ Repetir o procedimento anterior para todos os X de Teste
 
 ```{r}
 
+x_teste_len <- 10000
+n_iter <- 200
+
+hist_y_chapeu <- matrix(NA_real_, nrow = x_teste_len, ncol = n_iter)
+
+for (i in 1:x_teste_len) {
+  
+  mask_hid <- matrix(rbinom(n*H, size = 1, prob = p), n, H)
+  mask_hid <- c(mask_hid[1, 1], mask_hid[1, 2])
+  
+  x <- c(X_teste[i, 1], X_teste[i, 2])
+  
+  for (t in 1:n_iter) {
+    
+    # pego o resultado considerando
+    # a primeira observação apenas
+    # mas com outra sub rede amostrada com um mask_hid unico 
+    result_forward <- predict_nn_dropout_para_x_unico(x, pesos, bias, mask_hid)$y_chapeu
+    
+    hist_y_chapeu[i, t] <- result_forward
+    
+    # gerando a mascara nova
+    mask_hid <- c(rbinom(H, size = 1, prob = p))
+  }
+  
+}
+```
+
+```{r}
+
+y_hat_point <- rowMeans(hist_y_chapeu)
+
+IC_low  <- apply(hist_y_chapeu, 1, quantile, probs = 0.025)
+IC_high <- apply(hist_y_chapeu, 1, quantile, probs = 0.975)
+```
+
+```{r}
+
+cobertura <- mean(y_teste >= IC_low & y_teste <= IC_high)
+```
+
+```{r}
+
+captura <- (y_teste >= IC_low & y_teste <= IC_high)
+
+proporcao <- sum(captura) / length(captura)
+print(proporcao)
+```
+
+Parece que o intervalo de confiança não ta legal.
+
+```{r}
+
+mean(IC_high - IC_low)
+sd(y_teste - y_hat_point)
+```
+
+Ou seja, a largura média do meu intervalo é 7.5 mas o desvio padrão dos pontos é 10, logo parece que o intervalo de confiança está estreito demais.
+
+```{r}
+
+i <- 1  # escolha a observação do teste
+draws <- hist_y_chapeu[i, ]
+
+y_hat_point <- mean(draws)
+IC_95 <- quantile(draws, probs = c(0.025, 0.975))
+
+hist(draws, breaks = 30,
+     main = paste("MC Dropout - Observação", i),
+     xlab = expression(hat(y)))
+
+abline(v = y_hat_point, lwd = 2, col = "red")
+abline(v = IC_95, lwd = 2, lty = 2, col = "blue")
+
+legend("topright",
+       legend = c("média", "IC 95%"),
+       col = c("red", "blue"), lwd = 2, lty = c(1,2), bty = "n")
+
+
+```
+
+```{r}
+
+y_hat_point <- rowMeans(hist_y_chapeu)
+
+df_plot <- data.frame(
+  y_obs = y_teste,
+  y_hat = y_hat_point,
+  IC_low = IC_low,
+  IC_high = IC_high
+)
+
+ggplot(df_plot, aes(x = y_hat, y = y_obs)) +
+  # intervalos de confiança (verticais)
+  geom_linerange(
+    aes(ymin = IC_low, ymax = IC_high),
+    alpha = 0.15,
+    colour = "gray50"
+  ) +
+  # pontos (estimativa pontual)
+  geom_point(
+    alpha = 0.3,
+    size = 1
+  ) +
+  # linha identidade
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    linewidth = 1,
+    colour = "red"
+  ) +
+  labs(
+    x = expression(hat(y)~"(média das 200 predições)"),
+    y = "y observado",
+    title = "Observado vs Previsto com IC 95% (MC Dropout)"
+  ) +
+  theme_minimal()
+
 ```
 
 ## Item D
 
+Mesmo de antes, com weight scaling inference rule.
+
 ```{r}
+
+pesos_ws <- pesos
+pesos_ws[5] <- p * pesos[5]
+pesos_ws[6] <- p * pesos[6]
 
 ```
 
+```{r}
+
+predict_nn <- function(X, pesos, bias) {
+  x1 <- X[,1]
+  x2 <- X[,2]
+
+  a1 <- x1*pesos[1] + x2*pesos[3] + bias[1]
+  a2 <- x1*pesos[2] + x2*pesos[4] + bias[2]
+
+  h1 <- sigmoid(a1)
+  h2 <- sigmoid(a2)
+
+  h1*pesos[5] + h2*pesos[6] + bias[3]
+}
+
+y_hat_ws <- predict_nn(X_teste, pesos_ws, bias)
+```
+
+```{r}
+
+diff <- y_hat_point - y_hat_ws
+```
+
+```{r}
+
+summary(diff)
+sd(diff)
+mean(abs(diff))
+max(abs(diff))
+```
+
+Os dois métodos parecem ter se saído parecido.
+
+A inferência por weight scaling da letra dproduz estimativas pontuais semelhantes à média do dropout, mas não fornece intervalos de confiança, já que não está gerando distribuição de nada e eu estou pegando uma predição ponto a ponto.
+
+```{r}
+
+# Erro relativo médio
+
+mean(abs(diff) / abs(y_hat_point))
+```
+
+Ta bem baixo...
+
+```{r}
+
+# correlação
+
+cor(y_hat_point, y_hat_ws)
+```
+
+Weight scaling é tipo a média do dropout só que muito mais simples.
+
 # Questão 2
+
+## Item A
+
+A rede anterior, só que com Keras
+
+```{r}
+
+#install.packages("keras3")
+#install.packages("tensorflow")
+#install.packages("reticulate")
+
+library(keras3)
+library(tensorflow)
+
+```
+
+```{r}
+
+# Recapitulando, esses são os dados lá de cima, ainda serão usados
+X_treino <- as.matrix(dados_train[, c("x1","x2")])
+y_treino <- dados_train$y
+
+X_val <- as.matrix(dados_val[, c("x1","x2")])
+y_val <- dados_val$y
+ 
+X_teste <- as.matrix(dados_test[, c("x1","x2")])
+y_teste <- dados_test$y
+```
+
+```{r}
+
+# entradas: x1, x2
+# camada oculta: 2 neurônios, ativação sigmoid, bias (b1, b2)
+# saída: 1 neurônio linear, bias (b3)
+
+model <- keras_model_sequential() |>
+  layer_dense(
+    units = 2,
+    activation = "sigmoid",
+    input_shape = 2,
+    use_bias = TRUE,
+    name = "hidden"
+  ) |>
+  layer_dense(
+    units = 1,
+    activation = "linear",
+    use_bias = TRUE,
+    name = "output"
+  )
+
+model |>
+  compile(
+    optimizer = optimizer_sgd(learning_rate = 0.1),
+    loss = "mse"
+  )
+
+model
+
+```
+
+```{r}
+
+history <- model |>
+  fit(
+    x = X_treino,
+    y = y_treino,
+    epochs = 100,
+    batch_size = nrow(X_treino),  # full gradient descent
+    validation_data = list(X_val, y_val),
+    verbose = 1
+  )
+
+```
+
+```{r}
+
+# Previsão
+y_hat_test <- as.numeric(model |> predict(X_teste))
+```
+
+Resultado do treino
+
+![](images/clipboard-76133632.png)
+
+```{r}
+
+df_comp <- data.frame(
+  y_real = y_teste,
+  y_hat  = y_hat_test
+)
+
+ggplot(df_comp, aes(x = y_hat, y = y_real)) +
+  geom_point(alpha = 0.3, size = 1) +
+  geom_abline(intercept = 0, slope = 1,
+              linetype = "dashed", linewidth = 1, colour = "red") +
+  labs(
+    x = expression(hat(y)),
+    y = "y observado",
+    title = "Comparação: valores observados vs. previstos (keras padrão)"
+  ) 
+
+```
+
+Porque essa rede ta diferente da original que eu fiz na mão?
+
+-   pesos finais pequenos / saturação da sigmoid
+
+-   otimizadores diferentes, será?
+
+## Item B
+
+Mesma coisa, mas tentando melhorar a implementação para a melhor precisão que der
+
+```{r}
+
+# esse scale costuma ajudar com a sigmoid
+
+mu <- colMeans(X_treino)
+sdv <- apply(X_treino, 2, sd)
+
+X_treino <- scale(X_treino, center = mu, scale = sdv)
+X_val    <- scale(X_val,    center = mu, scale = sdv)
+X_teste  <- scale(X_teste,  center = mu, scale = sdv)
+
+```
+
+Testar diferentes coisas para ver qual é melhor, o objetivo é melhorar a performance da rede
+
+-   weight decay
+
+-   bagging
+
+-   dropout early stopping
+
+### Regularizador L2
+
+```{r}
+
+# pode usar weight decay, Bagging, droupout, Early stopping
+
+# vou testar dropout, regularizador L2 
+
+
+lambda <- 1e-3  # teste: 1e-4, 1e-3, 1e-2
+
+model_l2 <- keras_model_sequential() |>
+  layer_dense(
+    units = 2,
+    activation = "sigmoid",
+    input_shape = 2,
+    use_bias = TRUE,
+    kernel_regularizer = regularizer_l2(lambda),
+    name = "hidden"
+  ) |>
+  layer_dense(
+    units = 1,
+    activation = "linear",
+    use_bias = TRUE,
+    kernel_regularizer = regularizer_l2(lambda),
+    name = "output"
+  )
+
+model_l2 |> compile(
+  optimizer = optimizer_sgd(learning_rate = 0.1),
+  loss = "mse"
+)
+
+history_l2 <- model_l2 |> fit(
+  X_treino, y_treino,
+  epochs = 500,
+  batch_size = nrow(X_treino),
+  validation_data = list(X_val, y_val),
+  verbose = 1
+)
+
+
+
+```
+
+![](images/clipboard-3767245285.png)
+
+```{r}
+
+# Previsão
+y_hat_test_l2 <- as.numeric(model_l2 |> predict(X_teste))
+```
+
+```{r}
+
+df_comp <- data.frame(
+  y_real = y_teste,
+  y_hat  = y_hat_test_l2
+)
+
+ggplot(df_comp, aes(x = y_hat, y = y_real)) +
+  geom_point(alpha = 0.3, size = 1) +
+  geom_abline(intercept = 0, slope = 1,
+              linetype = "dashed", linewidth = 1, colour = "red") +
+  labs(
+    x = expression(hat(y)),
+    y = "y observado",
+    title = "Comparação: valores observados vs. previstos (keras - L2)"
+  ) 
+```
+
+### Dropout
+
+```{r}
+
+p <- 0.6
+rate <- 1 - p
+
+model_do <- keras_model_sequential() |>
+  layer_dropout(rate = rate, input_shape = 2, name = "drop_in") |>
+  layer_dense(
+    units = 2,
+    activation = "sigmoid",
+    use_bias = TRUE,
+    name = "hidden"
+  ) |>
+  layer_dropout(rate = rate, name = "drop_hid") |>
+  layer_dense(
+    units = 1,
+    activation = "linear",
+    use_bias = TRUE,
+    name = "output"
+  )
+
+model_do |> compile(
+  optimizer = optimizer_sgd(learning_rate = 0.1),
+  loss = "mse"
+)
+```
+
+```{r}
+
+history_do <- model_do |> fit(
+  X_treino, y_treino,
+  epochs = 500,
+  batch_size = nrow(X_treino),
+  validation_data = list(X_val, y_val),
+  verbose = 1
+)
+
+```
+
+![](images/clipboard-2108533115.png)
+
+```{r}
+
+# Previsão
+y_hat_test_do <- as.numeric(model_do |> predict(X_teste))
+```
+
+```{r}
+
+df_comp <- data.frame(
+  y_real = y_teste,
+  y_hat  = y_hat_test_do
+)
+
+ggplot(df_comp, aes(x = y_hat, y = y_real)) +
+  geom_point(alpha = 0.3, size = 1) +
+  geom_abline(intercept = 0, slope = 1,
+              linetype = "dashed", linewidth = 1, colour = "red") +
+  labs(
+    x = expression(hat(y)),
+    y = "y observado",
+    title = "Comparação: valores observados vs. previstos (keras- drop out)"
+  ) 
+```
+
+Dropout parece que não fez muita diferença
+
+### Early Stopping
+
+```{r}
+
+cb_es <- callback_early_stopping(
+  monitor = "val_loss",
+  patience = 150,
+  min_delta = 1e-4,
+  restore_best_weights = TRUE
+)
+```
+
+```{r}
+
+model_base_es <- keras_model_sequential() |>
+  layer_dense(
+    units = 2,
+    activation = "sigmoid",
+    input_shape = 2,
+    use_bias = TRUE,
+    name = "hidden"
+  ) |>
+  layer_dense(
+    units = 1,
+    activation = "linear",
+    use_bias = TRUE,
+    name = "output"
+  )
+
+model_base_es |>
+  compile(
+    optimizer = optimizer_sgd(learning_rate = 0.1),
+    loss = "mse"
+  )
+```
+
+```{r}
+
+# modelo baseline com eraly stopping
+history_es <- |> fit(
+  X_treino, y_treino,
+  epochs = 2000,
+  batch_size = nrow(X_treino),
+  validation_data = list(X_val, y_val),
+  callbacks = list(cb_es),
+  verbose = 1
+)
+
+```
+
+![](images/clipboard-3772893305.png)
+
+```{r}
+
+# dropout com early stopping
+history_es_do <- model_do |> fit(
+  X_treino, y_treino,
+  epochs = 2000,
+  batch_size = nrow(X_treino),
+  validation_data = list(X_val, y_val),
+  callbacks = list(cb_es),
+  verbose = 1
+)
+
+```
+
+![](images/clipboard-3184212554.png)
+
+```{r}
+
+# l2 com early stopping
+history_es_l2 <- model_l2 |> fit(
+  X_treino, y_treino,
+  epochs = 2000,
+  batch_size = nrow(X_treino),
+  validation_data = list(X_val, y_val),
+  callbacks = list(cb_es),
+  verbose = 1
+)
+```
+
+![](images/clipboard-3390591433.png)
+
+```{r}
+
+# Previsão
+y_hat_l2_es <- as.numeric(model_l2 |> predict(X_teste))
+y_hat_do_es <- as.numeric(model_do |> predict(X_teste))
+y_hat_es <- as.numeric(model |> predict(X_teste))
+```
+
+### Bagging
+
+```{r}
+
+make_model <- function(lambda = 0, dropout_rate = 0) {
+  m <- keras_model_sequential()
+
+  if (dropout_rate > 0) {
+    m <- m |> layer_dropout(rate = dropout_rate, input_shape = 2)
+  }
+
+  m <- m |>
+    layer_dense(
+      units = 2,
+      activation = "sigmoid",
+      input_shape = if (dropout_rate == 0) 2 else NULL,
+      kernel_regularizer = if (lambda > 0) regularizer_l2(lambda) else NULL
+    )
+
+  if (dropout_rate > 0) {
+    m <- m |> layer_dropout(rate = dropout_rate)
+  }
+
+  m <- m |>
+    layer_dense(
+      units = 1,
+      activation = "linear",
+      kernel_regularizer = if (lambda > 0) regularizer_l2(lambda) else NULL
+    )
+
+  m |> compile(
+    optimizer = optimizer_sgd(learning_rate = 0.1),
+    loss = "mse"
+  )
+  m
+}
+
+```
+
+```{r}
+
+set.seed(1)
+B <- 20
+n <- nrow(X_treino)
+
+preds_test <- matrix(NA_real_, nrow = nrow(X_teste), ncol = B)
+
+cb_es <- callback_early_stopping(
+  monitor = "val_loss",
+  patience = 20,
+  min_delta = 1e-4,
+  restore_best_weights = TRUE
+)
+
+for (b in 1:B) {
+  idx <- sample.int(n, size = n, replace = TRUE)  # bootstrap
+
+  m <- make_model(lambda = 1e-3, dropout_rate = 0.4)  # ajuste aqui
+
+  m |> fit(
+    X_treino[idx, , drop = FALSE], y_treino[idx],
+    epochs = 2000,
+    batch_size = nrow(X_treino[idx, , drop = FALSE]),
+    validation_data = list(X_val, y_val),
+    callbacks = list(cb_es),
+    verbose = 0
+  )
+
+  preds_test[, b] <- as.numeric(m |> predict(X_teste))
+}
+
+```
+
+```{r}
+
+y_hat_bag <- rowMeans(preds_test)
+```
+
+```{r}
+
+df_comp <- data.frame(
+  y_real = y_teste,
+  y_hat  = y_hat_bag
+)
+
+ggplot(df_comp, aes(x = y_hat, y = y_real)) +
+  geom_point(alpha = 0.3, size = 1) +
+  geom_abline(intercept = 0, slope = 1,
+              linetype = "dashed", linewidth = 1, colour = "red") +
+  labs(
+    x = expression(hat(y)),
+    y = "y observado",
+    title = "Comparação: valores observados vs. previstos (keras- bagging)"
+  ) 
+```
+
+Eita.
+
+### Mas qual escolher? 
+
+```{r}
+
+df_models <- tibble(
+  y_real = y_teste,
+  bagging        = y_hat_bag,
+  dropout        = y_hat_test_do,
+  dropout_es     = y_hat_do_es,
+  l2             = y_hat_test_l2,
+  l2_es          = y_hat_l2_es,
+  early_stopping = y_hat_es,
+  baseline       = y_hat_test
+) |>
+  pivot_longer(
+    cols = -y_real,
+    names_to = "modelo",
+    values_to = "y_hat"
+  )
+
+```
+
+```{r}
+
+metricas <- df_models |>
+  group_by(modelo) |>
+  summarise(
+    RMSE = sqrt(mean((y_real - y_hat)^2)),
+    MAE  = mean(abs(y_real - y_hat)),
+    Bias = mean(y_real - y_hat),
+    .groups = "drop"
+  ) |>
+  arrange(RMSE)
+
+metricas
+
+```
+
+```{r}
+
+df_comp <- data.frame(
+  y_real = y_teste,
+  y_hat  = y_hat_es
+)
+
+ggplot(df_comp, aes(x = y_hat, y = y_real)) +
+  geom_point(alpha = 0.3, size = 1) +
+  geom_abline(intercept = 0, slope = 1,
+              linetype = "dashed", linewidth = 1, colour = "red") +
+  labs(
+    x = expression(hat(y)),
+    y = "y observado",
+    title = "Comparação: valores observados vs. previstos (early stopping - melhor modelo)"
+  ) 
+```
+
+## Item C
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+```
+
+```{r}
+
+
+
+
+```
