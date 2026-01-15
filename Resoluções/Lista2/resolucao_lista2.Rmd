@@ -1251,7 +1251,7 @@ model_base_es |>
 ```{r}
 
 # modelo baseline com eraly stopping
-history_es <- |> fit(
+history_es <- model_base_es |> fit(
   X_treino, y_treino,
   epochs = 2000,
   batch_size = nrow(X_treino),
@@ -1439,11 +1439,15 @@ metricas
 
 ```
 
+### Item C
+
+No melhor modelo, gráfico de y po y chapéu.
+
 ```{r}
 
 df_comp <- data.frame(
   y_real = y_teste,
-  y_hat  = y_hat_es
+  y_hat  = y_hat_test_l2
 )
 
 ggplot(df_comp, aes(x = y_hat, y = y_real)) +
@@ -1453,27 +1457,212 @@ ggplot(df_comp, aes(x = y_hat, y = y_real)) +
   labs(
     x = expression(hat(y)),
     y = "y observado",
-    title = "Comparação: valores observados vs. previstos (early stopping - melhor modelo)"
+    title = "Comparação: valores observados vs. previstos (l2 - menos rmse)"
   ) 
 ```
 
-## Item C
+## Item D
+
+Rede anterior, resultado para x1 = 1 e x2 = 1
+
+```{r}
+
+x_new <- matrix(c(1, 1), nrow = 1)
+
+# botando na escala
+x_new <- scale(x_new, center = mu, scale = sdv)
+```
+
+```{r}
+
+y_hat_x1 <- model_l2 |> predict(x_new)
+y_hat_x1 <- as.numeric(y_hat_x1)
+
+y_hat_x1
+```
+
+No modelo da lista 1, o resultado para (1, 1) dava quanto mesmo?
+
+## Item E
 
 ```{r}
 
 
+# grade regular no domínio
+x1_seq <- seq(-3, 3, length.out = 100)
+x2_seq <- seq(-3, 3, length.out = 100)
+
+grid <- expand.grid(
+  x1 = x1_seq,
+  x2 = x2_seq
+) %>%
+  mutate(
+    mu = abs(x1^3 - 30 * sin(x2) + 10)
+  )
+
+# Figura 1 — superfície verdadeira
+ggplot(grid, aes(x = x1, y = x2, z = mu)) +
+  geom_contour_filled() +
+  labs(
+    title = expression("Figura 1 — Superfície verdadeira " * mu(x[1], x[2])),
+    x = expression(x[1]),
+    y = expression(x[2]),
+    fill = expression(mu)
+  ) +
+  theme_minimal()
 
 ```
 
 ```{r}
 
+library(patchwork)
+```
 
+```{r}
+
+grid <- grid %>%
+  mutate(
+    mu_true = abs(x1^3 - 30*sin(x2) + 10)
+  )
+
+X_grid <- as.matrix(grid[, c("x1", "x2")])
+
+grid$mu_hat <- as.numeric(model_l2 |> predict(X_grid))
+
+p_true <- ggplot(grid, aes(x1, x2, z = mu_true)) +
+  geom_contour_filled() +
+  labs(title = expression(mu(x[1], x[2]))) +
+  theme_minimal()
+
+p_hat <- ggplot(grid, aes(x1, x2, z = mu_hat)) +
+  geom_contour_filled() +
+  labs(title = expression(hat(mu)(x[1], x[2]))) +
+  theme_minimal()
+
+p_true | p_hat
+```
+
+```{r}
+
+grid <- grid %>%
+  mutate(
+    mu_true2 = abs(x1^3 - 30*sin(x2) + 10)
+  )
+
+X_grid <- as.matrix(grid[, c("x1", "x2")])
+
+grid$mu_hat2 <- as.numeric(model |> predict(X_grid))
+
+p_true <- ggplot(grid, aes(x1, x2, z = mu_true2)) +
+  geom_contour_filled() +
+  labs(title = expression(mu(x[1], x[2]))) +
+  theme_minimal()
+
+p_hat <- ggplot(grid, aes(x1, x2, z = mu_hat2)) +
+  geom_contour_filled() +
+  labs(title = expression(hat(mu)(x[1], x[2]))) +
+  theme_minimal()
+
+p_true | p_hat
+```
+
+Observa-se que a rede neural é capaz de capturar a tendência global da função verdadeira, distinguindo regiões de maior e menor magnitude. No entanto, a superfície estimada apresenta-se significativamente mais suave, não reproduzindo adequadamente as variações locais e oscilações desses termos mais estranhos/não lineares. Acho que esse desempenho limitado está dentro do esperado para uma rede tão pequena.
+
+Obs - revisar pra ver se é isso mesmo.
+
+## Item F
+
+```{r}
+
+# vou pegar um modelo mais simples
+
+model_fim <- keras_model_sequential() |>
+  layer_dense(
+    units = 2,
+    activation = "sigmoid",
+    input_shape = 2,
+    use_bias = TRUE,
+    name = "hidden"
+  ) |>
+  layer_dense(
+    units = 1,
+    activation = "linear",
+    use_bias = TRUE,
+    name = "output"
+  )
+
+model_fim |>
+  compile(
+    optimizer = optimizer_sgd(learning_rate = 0.1),
+    loss = "mse"
+  )
+
+model_fim
+```
+
+```{r}
+
+# vou usar o resultado da rede com regularizador L2 pra destilar na rede mais simples
+
+mu_hat_treino <- as.numeric(model_l2 |> predict(X_treino))
+mu_hat_val    <- as.numeric(model_l2 |> predict(X_val))
 
 ```
 
 ```{r}
 
-
-
+history_f <- model_fim |> fit(
+  x = X_treino,
+  y = mu_hat_treino,
+  validation_data = list(X_val, mu_hat_val),
+  epochs = 200,
+  batch_size = nrow(X_treino),
+  verbose = 1
+)
 
 ```
+
+```{r}
+
+y_hat_test_fim <- as.numeric(model_fim |> predict(X_teste))
+```
+
+```{r}
+
+df_comp <- data.frame(
+  y_real = y_teste,
+  y_hat  = y_hat_test_fim
+)
+
+ggplot(df_comp, aes(x = y_hat, y = y_real)) +
+  geom_point(alpha = 0.3, size = 1) +
+  geom_abline(intercept = 0, slope = 1,
+              linetype = "dashed", linewidth = 1, colour = "red") +
+  labs(
+    x = expression(hat(y)),
+    y = "y observado",
+    title = "Comparação: valores observados vs. previstos (keras padrão)"
+  ) 
+
+```
+
+```{r}
+
+X_grid <- as.matrix(grid[, c("x1", "x2")])
+
+grid$mu_hat_novo <- as.numeric(model_fim |> predict(X_grid))
+
+p_true <- ggplot(grid, aes(x1, x2, z = mu_hat2)) +
+  geom_contour_filled() +
+  labs(title = "modelo simples") +
+  theme_minimal()
+
+p_hat <- ggplot(grid, aes(x1, x2, z = mu_hat_novo)) +
+  geom_contour_filled() +
+  labs(title = "modelo destilado") +
+  theme_minimal()
+
+p_true | p_hat
+```
+
+Parece que a rede teoricamente mais simples foi capaz de reproduzir a mais complexa. na direita, o modelo mais simples de curva mais rídiga, na direita o modelo com arquitetura mais simples que abstraiu o resultado que queríamos via treino com y_chapeu do outro modelo.
