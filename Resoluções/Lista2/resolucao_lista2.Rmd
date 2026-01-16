@@ -949,6 +949,10 @@ A rede anterior, só que com Keras
 #install.packages("tensorflow")
 #install.packages("reticulate")
 
+```
+
+```{r}
+
 library(keras3)
 library(tensorflow)
 
@@ -1049,7 +1053,7 @@ Porque essa rede ta diferente da original que eu fiz na mão?
 
 ## Item B
 
-Mesma coisa, mas tentando melhorar a implementação para a melhor precisão que der
+x \<- c(X_teste[1, 1], X_teste[1, 2])Mesma coisa, mas tentando melhorar a implementação para a melhor precisão que der
 
 ```{r}
 
@@ -1401,7 +1405,7 @@ ggplot(df_comp, aes(x = y_hat, y = y_real)) +
 
 Eita.
 
-### Mas qual escolher? 
+### Mas qual escolher?
 
 ```{r}
 
@@ -1481,7 +1485,7 @@ y_hat_x1 <- as.numeric(y_hat_x1)
 y_hat_x1
 ```
 
-No modelo da lista 1, o resultado para (1, 1) dava quanto mesmo?
+No modelo da lista 1, o resultado para (1, 1) dava quanto mesmo? Era um valor tipo esse, tem que ver.
 
 ## Item E
 
@@ -1515,6 +1519,11 @@ ggplot(grid, aes(x = x1, y = x2, z = mu)) +
 
 ```{r}
 
+#install.packages("patchwork")
+```
+
+```{r}
+
 library(patchwork)
 ```
 
@@ -1531,12 +1540,12 @@ grid$mu_hat <- as.numeric(model_l2 |> predict(X_grid))
 
 p_true <- ggplot(grid, aes(x1, x2, z = mu_true)) +
   geom_contour_filled() +
-  labs(title = expression(mu(x[1], x[2]))) +
+  labs(title = "Funcao Real") +
   theme_minimal()
 
 p_hat <- ggplot(grid, aes(x1, x2, z = mu_hat)) +
   geom_contour_filled() +
-  labs(title = expression(hat(mu)(x[1], x[2]))) +
+  labs(title = "Modelo Reg. L2") +
   theme_minimal()
 
 p_true | p_hat
@@ -1555,20 +1564,18 @@ grid$mu_hat2 <- as.numeric(model |> predict(X_grid))
 
 p_true <- ggplot(grid, aes(x1, x2, z = mu_true2)) +
   geom_contour_filled() +
-  labs(title = expression(mu(x[1], x[2]))) +
+  labs(title = "Funcao Real") +
   theme_minimal()
 
 p_hat <- ggplot(grid, aes(x1, x2, z = mu_hat2)) +
   geom_contour_filled() +
-  labs(title = expression(hat(mu)(x[1], x[2]))) +
+  labs(title = "Modelo Simples") +
   theme_minimal()
 
 p_true | p_hat
 ```
 
-Observa-se que a rede neural é capaz de capturar a tendência global da função verdadeira, distinguindo regiões de maior e menor magnitude. No entanto, a superfície estimada apresenta-se significativamente mais suave, não reproduzindo adequadamente as variações locais e oscilações desses termos mais estranhos/não lineares. Acho que esse desempenho limitado está dentro do esperado para uma rede tão pequena.
-
-Obs - revisar pra ver se é isso mesmo.
+Observa-se que a rede neural é capaz de capturar a tendência global da função verdadeira, distinguindo regiões de maior e menor magnitude. No entanto, a superfície estimada apresenta-se significativamente mais suave, não reproduzindo adequadamente as variações locais e oscilações desses termos mais estranhos/não lineares. Acho que esse desempenho limitado está dentro do esperado para uma rede tão pequena. O modelo com regularizador L2 foi melhor que o modelo base.
 
 ## Item F
 
@@ -1659,7 +1666,7 @@ p_true <- ggplot(grid, aes(x1, x2, z = mu_hat2)) +
 
 p_hat <- ggplot(grid, aes(x1, x2, z = mu_hat_novo)) +
   geom_contour_filled() +
-  labs(title = "modelo destilado") +
+  labs(title = "modelo simples (destilado)") +
   theme_minimal()
 
 p_true | p_hat
