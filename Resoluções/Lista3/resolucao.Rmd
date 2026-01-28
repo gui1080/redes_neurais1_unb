@@ -1,0 +1,81 @@
+---
+title: "Resolução - Lista 3"
+output:
+  pdf_document:
+    latex_engine: lualatex
+---
+
+# Otimização de RNA
+
+Considerando:
+
+![](images/clipboard-1935277996.png)
+
+```{r}
+
+library(tidyverse)
+
+f <- function(x1, x2){
+  x1^4 + x2^4 + x1^2*x2 + x1*x2^2 - 20*x1^2 - 15*x2^2
+}
+```
+
+## Letra A
+
+Curvas de nível de f(x1,x2)
+
+```{r}
+
+grid <- expand.grid(
+  x1 = seq(-4, 4, by = 0.02),
+  x2 = seq(-4, 4, by = 0.02)
+) |>
+  as_tibble() |>
+  mutate(z = f(x1, x2))
+
+ggplot(grid, aes(x = x1, y = x2, z = z)) +
+  geom_contour_filled(bins = 30) +
+  coord_equal() +
+  labs(x = "x1", y = "x2", fill = "f(x1,x2)") +
+  theme_minimal()
+```
+
+```{r}
+
+grid <- expand.grid(
+  x1 = seq(-5, 5, by = 0.02),
+  x2 = seq(-5, 5, by = 0.02)
+) |>
+  as_tibble() |>
+  mutate(z = f(x1, x2))
+
+ggplot(grid, aes(x = x1, y = x2, z = z)) +
+  geom_contour_filled(bins = 30) +
+  coord_equal() +
+  labs(x = "x1", y = "x2", fill = "f(x1,x2)") +
+  theme_minimal()
+```
+
+![](letra_a.png)
+
+## Letra B
+
+![](images/clipboard-3238225999.png)
+
+(Ver resolução no papel e caneta)
+
+## Letra C
+
+Função computacional que implementa o método de gradiente para minimizar a função.
+
+Tem que ter taxa de aprendizado, número de passos e ponto de partida.
+
+```{r}
+
+
+
+```
+
+## Letra D
+
+## Letra E
