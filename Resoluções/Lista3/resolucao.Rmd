@@ -13,11 +13,38 @@ Considerando:
 
 ```{r}
 
+#install.packages("plotly")
+#install.packages("tidyverse")
+```
+
+```{r}
+
+library(plotly)
 library(tidyverse)
 
 f <- function(x1, x2){
   x1^4 + x2^4 + x1^2*x2 + x1*x2^2 - 20*x1^2 - 15*x2^2
 }
+```
+
+```{r}
+
+
+# grade (ajuste o intervalo se quiser)
+x1 <- seq(-4, 4, length.out = 160)
+x2 <- seq(-4, 4, length.out = 160)
+
+# matriz z: linhas = x1, colunas = x2
+z <- outer(x1, x2, f)
+
+plot_ly(x = x1, y = x2, z = z, type = "surface") |>
+  layout(
+    scene = list(
+      xaxis = list(title = "x1"),
+      yaxis = list(title = "x2"),
+      zaxis = list(title = "f(x1,x2)")
+    )
+  )
 ```
 
 ## Letra A
@@ -68,7 +95,120 @@ ggplot(grid, aes(x = x1, y = x2, z = z)) +
 
 Função computacional que implementa o método de gradiente para minimizar a função.
 
-Tem que ter taxa de aprendizado, número de passos e ponto de partida.
+Tem que ter:
+
+-   taxa de aprendizado
+
+-   número de passos
+
+-   ponto de partida
+
+Ver resolução prévia que eu fiz na mão para mais detalhes.
+
+```{r}
+
+# derivada parcial 1
+df_x1 <- function(x1, x2){
+  return(4*x1^3 + 2*x1*x2 + x2^2 - 40*x1)
+}
+
+# derivada parcial 2
+df_x2 <- function(x1, x2){
+  return(4*x2^3 + x1^2 + 2*x1*x2 - 30*x2)
+}
+
+# em um k passo, taxa de aprendizado multiplicado por derivadas parciais naquele valor k
+grad_step <- function(alpha, x1_k, x2_k){
+  
+  g1 <- df_x1(x1_k, x2_k)
+  g2 <- df_x2(x1_k, x2_k)
+  
+  return(list(
+    result_1 = alpha * g1,
+    result_2 = alpha * g2
+  ))
+}
+
+```
+
+```{r}
+
+# testando
+print(df_x1(0,5))
+print(df_x2(0,5))
+a <- grad_step(0.01,0,5)$result_1
+print(a)
+b <- grad_step(0.01,0,5)$result_2
+print(b)
+```
+
+```{r}
+
+gradiente_min <- function(alpha, n_passos, x1_init, x2_init){
+  
+  hist <- matrix(NA, nrow = n_passos, ncol = 2)
+  colnames(hist) <- c("x1", "x2")
+
+  # inicializo x1 e x2 com os iniciais
+  x1 <- x1_init
+  x2 <- x2_init
+  
+  for (i in 1:n_passos) {
+    
+    # calculo alpha * derivada parcial 1 e alpha * derivada parcial 2
+    step <- grad_step(alpha, x1, x2)
+    
+    # atualizo x1 e x2 com essa atualização de valor
+    x1 <- x1 - step$result_1
+    x2 <- x2 - step$result_2
+    
+    # histórico
+    hist[i, ] <- c(x1, x2)
+    
+  }
+  
+  return(list(
+    hist_min = hist,
+    x1_min = x1,
+    x2_min = x2
+  ))
+}
+```
+
+## Letra D
+
+x1_init = 0
+
+x2_init = 5
+
+alpha = 0.01
+
+n_passos = 100
+
+```{r}
+
+result <- gradiente_min(0.01, 100, 0, 5)
+```
+
+```{r}
+
+result$x1_min
+result$x2_min
+```
+
+## Letra E
+
+Agora variando taxa de aprendizado:
+
+-   1
+
+-   0.1
+
+-   0.01
+
+-   0.001
+
+-   0.0001
 
 ```{r}
 
@@ -76,6 +216,42 @@ Tem que ter taxa de aprendizado, número de passos e ponto de partida.
 
 ```
 
-## Letra D
+## Letra F
 
-## Letra E
+```{r}
+
+
+
+```
+
+## Letra G
+
+```{r}
+
+
+
+```
+
+## Letra H
+
+```{r}
+
+
+
+```
+
+## Letra I
+
+```{r}
+
+
+
+```
+
+## Letra J
+
+```{r}
+
+
+
+```
