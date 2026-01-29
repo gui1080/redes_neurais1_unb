@@ -83,6 +83,8 @@ ggplot(grid, aes(x = x1, y = x2, z = z)) +
   theme_minimal()
 ```
 
+### Rabiscando na mão os pontos de interesse
+
 ![](letra_a.png)
 
 ## Letra B
@@ -196,6 +198,40 @@ result$x1_min
 result$x2_min
 ```
 
+```{r}
+
+hist_df <- as_tibble(result$hist_min) |>
+  mutate(iter = row_number())
+
+# trajetória (x1 vs x2)
+ggplot(hist_df, aes(x = x1, y = x2)) +
+  geom_path() +
+  geom_point(size = 2) +
+  annotate(
+    "point",
+    x = hist_df$x1[1],
+    y = hist_df$x2[1],
+    shape = 4,
+    size = 4,
+    stroke = 1.2
+  ) +
+  annotate(
+    "point",
+    x = hist_df$x1[nrow(hist_df)],
+    y = hist_df$x2[nrow(hist_df)],
+    shape = 16,
+    size = 3
+  ) +
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    title = "Trajetória do gradiente (início e fim)"
+  ) +
+  theme_minimal()
+
+```
+
 ## Letra E
 
 Agora variando taxa de aprendizado:
@@ -212,19 +248,324 @@ Agora variando taxa de aprendizado:
 
 ```{r}
 
+result1 <- gradiente_min(1, 100, 0, 5)
+result2 <- gradiente_min(0.1, 100, 0, 5)
+result3 <- gradiente_min(0.01, 100, 0, 5)
+result4 <- gradiente_min(0.001, 100, 0, 5)
+result5 <- gradiente_min(0.0001, 100, 0, 5)
+```
 
+```{r}
+
+hist_df1 <- as_tibble(result1$hist_min) |>
+  mutate(iter = row_number())
+
+hist_df2 <- as_tibble(result2$hist_min) |>
+  mutate(iter = row_number())
+
+hist_df3 <- as_tibble(result3$hist_min) |>
+  mutate(iter = row_number())
+
+hist_df4 <- as_tibble(result4$hist_min) |>
+  mutate(iter = row_number())
+
+hist_df5 <- as_tibble(result5$hist_min) |>
+  mutate(iter = row_number())
+
+# 1
+
+
+hist_df1 <- hist_df1 |>
+  filter(is.finite(x1), is.finite(x2))
+
+ggplot(hist_df1, aes(x = x1, y = x2)) +
+  geom_path() +
+  geom_point(size = 2) +
+  annotate(
+    "point",
+    x = hist_df1$x1[1],
+    y = hist_df1$x2[1],
+    shape = 4,
+    size = 4,
+    stroke = 1.2
+  ) +
+  annotate(
+    "point",
+    x = hist_df1$x1[nrow(hist_df)],
+    y = hist_df1$x2[nrow(hist_df)],
+    shape = 16,
+    size = 3
+  ) +
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    title = "Trajetória do gradiente (1)"
+  ) +
+  theme_minimal()
+
+# 0.1
+
+hist_df2 <- hist_df2 |>
+  filter(is.finite(x1), is.finite(x2))
+
+ggplot(hist_df2, aes(x = x1, y = x2)) +
+  geom_path() +
+  geom_point(size = 2) +
+  annotate(
+    "point",
+    x = hist_df2$x1[1],
+    y = hist_df2$x2[1],
+    shape = 4,
+    size = 4,
+    stroke = 1.2
+  ) +
+  annotate(
+    "point",
+    x = hist_df2$x1[nrow(hist_df)],
+    y = hist_df2$x2[nrow(hist_df)],
+    shape = 16,
+    size = 3
+  ) +
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    title = "Trajetória do gradiente (0.1)"
+  ) +
+  theme_minimal()
+
+# 0.01
+ggplot(hist_df3, aes(x = x1, y = x2)) +
+  geom_path() +
+  geom_point(size = 2) +
+  annotate(
+    "point",
+    x = hist_df3$x1[1],
+    y = hist_df3$x2[1],
+    shape = 4,
+    size = 4,
+    stroke = 1.2
+  ) +
+  annotate(
+    "point",
+    x = hist_df3$x1[nrow(hist_df)],
+    y = hist_df3$x2[nrow(hist_df)],
+    shape = 16,
+    size = 3
+  ) +
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    title = "Trajetória do gradiente (0.01)"
+  ) +
+  theme_minimal()
+
+# 0.001
+
+hist_df4 <- hist_df4 |>
+  filter(is.finite(x1), is.finite(x2))
+
+ggplot(hist_df4, aes(x = x1, y = x2)) +
+  geom_path() +
+  geom_point(size = 2) +
+  annotate(
+    "point",
+    x = hist_df4$x1[1],
+    y = hist_df4$x2[1],
+    shape = 4,
+    size = 4,
+    stroke = 1.2
+  ) +
+  annotate(
+    "point",
+    x = hist_df4$x1[nrow(hist_df)],
+    y = hist_df4$x2[nrow(hist_df)],
+    shape = 16,
+    size = 3
+  ) +
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    title = "Trajetória do gradiente (0.001)"
+  ) +
+  theme_minimal()
+
+# 0.0001
+
+# limpeza mínima (evita NA/Inf)
+hist_df5_ok <- hist_df5 |>
+  filter(is.finite(x1), is.finite(x2))
+
+n <- nrow(hist_df5_ok)
+
+ggplot(hist_df5_ok, aes(x = x1, y = x2)) +
+  geom_path(linewidth = 1) +
+  geom_point(size = 1.2) +
+  annotate(
+    "point",
+    x = hist_df5_ok$x1[1],
+    y = hist_df5_ok$x2[1],
+    shape = 4,
+    size = 4,
+    stroke = 1.2
+  ) +
+  annotate(
+    "point",
+    x = hist_df5_ok$x1[n],
+    y = hist_df5_ok$x2[n],
+    shape = 16,
+    size = 3
+  ) +
+  coord_equal() +
+  coord_cartesian(
+    xlim = range(hist_df5_ok$x1) + c(-0.1, 0.1),
+    ylim = range(hist_df5_ok$x2) + c(-0.1, 0.1)
+  ) +
+  labs(
+    x = "x1",
+    y = "x2",
+    title = "Trajetória do gradiente (0.0001)"
+  ) +
+  theme_minimal()
 
 ```
 
-## Letra F
+Taxas de aprendizado
+
+1 - divergiu
+
+0.1 - divergiu
+
+0.01 - passo muito grande?
+
+0.001 - mais sauve, segue curva do vale \<- esse seria o valor escolhido!
+
+0.0001 - mais lento, estável
+
+![](letra_e.png)
+
+## Letra F 
+
+```{r}
+
+set.seed(123)
+
+iniciais <- tibble(
+  id = 1:20,
+  x1_init = runif(20, min = -5, max = 5),
+  x2_init = runif(20, min = -5, max = 5)
+)
+
+```
+
+```{r}
+
+alpha <- 0.001
+n_passos <- 5000
+
+# objetos para guardar resultados finais
+x1_final <- numeric(20)
+x2_final <- numeric(20)
+
+hist_all <- data.frame()
+
+for (i in 1:20) {
+  
+  res <- gradiente_min(
+    alpha = alpha,
+    n_passos = n_passos,
+    x1_init = iniciais$x1_init[i],
+    x2_init = iniciais$x2_init[i]
+  )
+  
+  x1_final[i] <- res$x1_min
+  x2_final[i] <- res$x2_min
+  
+  hist_i <- as.data.frame(res$hist_min)
+  colnames(hist_i) <- c("x1", "x2")
+
+  hist_i$run  <- i
+  hist_i$iter <- 1:nrow(hist_i)
+
+  hist_all <- rbind(hist_all, hist_i)
+}
+
+```
+
+```{r}
+
+resultados <- data.frame(
+  x1_init = iniciais$x1_init,
+  x2_init = iniciais$x2_init,
+  x1_final = x1_final,
+  x2_final = x2_final
+)
+
+resultados
+
+```
 
 ```{r}
 
 
+ggplot(grid, aes(x = x1, y = x2, z = z)) +
+  geom_contour_filled(bins = 30) +
+  geom_point(
+    data = resultados,
+    aes(x = x1_final, y = x2_final),
+    inherit.aes = FALSE,
+    color = "red",
+    size = 3
+  ) +
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    fill = "f(x1,x2)",
+    title = "Curvas de nível com pontos finais do gradiente"
+  ) +
+  theme_minimal()
 
 ```
 
+```{r}
+
+ggplot(grid, aes(x = x1, y = x2, z = z)) +
+  geom_contour_filled(bins = 30) +
+  geom_path(
+    data = hist_all,
+    aes(x = x1, y = x2, group = run),
+    inherit.aes = FALSE,
+    color = "black",
+    linewidth = 0.6
+  ) +
+  geom_point(
+    data = hist_all,
+    aes(x = x1, y = x2, group = run),
+    inherit.aes = FALSE,
+    color = "black",
+    size = 1
+  ) +
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    fill = "f(x1,x2)",
+    title = "Curvas de nível com trajetórias do gradiente"
+  ) +
+  theme_minimal()
+
+
+```
+
+Todos convergem, mas nem todos convergem para o mesmo mínimo!
+
 ## Letra G
+
+Repetindo letra D, fazendo gradiente com momento
 
 ```{r}
 
@@ -234,6 +575,8 @@ Agora variando taxa de aprendizado:
 
 ## Letra H
 
+Repetindo letra D, fazendo gradiente RMSProp
+
 ```{r}
 
 
@@ -242,6 +585,8 @@ Agora variando taxa de aprendizado:
 
 ## Letra I
 
+Repetindo letra D, fazendo gradiente Adam
+
 ```{r}
 
 
@@ -249,6 +594,8 @@ Agora variando taxa de aprendizado:
 ```
 
 ## Letra J
+
+Grafico dos passos nas letras d, g, h, i
 
 ```{r}
 
