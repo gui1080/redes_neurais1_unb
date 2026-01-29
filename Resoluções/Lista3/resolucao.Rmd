@@ -3,6 +3,7 @@ title: "Resolução - Lista 3"
 output:
   pdf_document:
     latex_engine: lualatex
+always_allow_html: true
 ---
 
 # Otimização de RNA
@@ -13,14 +14,12 @@ Considerando:
 
 ```{r}
 
-#install.packages("plotly")
-#install.packages("tidyverse")
+library(plotly)
+library(tidyverse)
+
 ```
 
 ```{r}
-
-library(plotly)
-library(tidyverse)
 
 f <- function(x1, x2){
   x1^4 + x2^4 + x1^2*x2 + x1*x2^2 - 20*x1^2 - 15*x2^2
@@ -229,6 +228,68 @@ ggplot(hist_df, aes(x = x1, y = x2)) +
     title = "Trajetória do gradiente (início e fim)"
   ) +
   theme_minimal()
+
+```
+
+```{r}
+
+# grade das curvas de nível
+grid <- expand.grid(
+  x1 = seq(-4, 4, by = 0.02),
+  x2 = seq(-4, 4, by = 0.02)
+) |>
+  as_tibble() |>
+  mutate(z = f(x1, x2))
+
+ggplot(grid, aes(x = x1, y = x2, z = z)) +
+  geom_contour_filled(bins = 30) +
+  
+  # trajetória do gradiente simples
+  geom_path(
+    data = hist_df,
+    aes(x = x1, y = x2),
+    inherit.aes = FALSE,
+    color = "black",
+    linewidth = 0.8
+  ) +
+  geom_point(
+    data = hist_df,
+    aes(x = x1, y = x2),
+    inherit.aes = FALSE,
+    color = "black",
+    size = 1.5
+  ) +
+  
+  # início (X)
+  annotate(
+    "point",
+    x = hist_df$x1[1],
+    y = hist_df$x2[1],
+    shape = 4,
+    size = 4,
+    stroke = 1.2,
+    color = "black"
+  ) +
+  
+  # fim (●)
+  annotate(
+    "point",
+    x = hist_df$x1[nrow(hist_df)],
+    y = hist_df$x2[nrow(hist_df)],
+    shape = 16,
+    size = 3,
+    color = "black"
+  ) +
+  
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    fill = "f(x1,x2)",
+    title = "Curvas de nível com trajetória do gradiente"
+  ) +
+  theme_minimal()
+
 
 ```
 
@@ -565,13 +626,120 @@ Todos convergem, mas nem todos convergem para o mesmo mínimo!
 
 ## Letra G
 
-Repetindo letra D, fazendo gradiente com momento
+Repetindo letra D, fazendo gradiente com momento.
+
+O método do gradiente com momento incorpora uma média exponencial dos gradientes passados, reduzindo oscilações e acelerando a convergência em direções de curvatura suave.
 
 ```{r}
 
+# paramentro momento entre 0 e 1
+gradiente_momento <- function(alpha, momentum, n_passos, x1_init, x2_init){
+  
+  hist <- matrix(NA, nrow = n_passos, ncol = 2)
+  colnames(hist) <- c("x1", "x2")
+
+  # inicializo x1 e x2 com os iniciais
+  x1 <- x1_init
+  x2 <- x2_init
+  
+  v1 <- 0
+  v2 <- 0
+  
+  for (i in 1:n_passos) {
+    
+    # calculo alpha * derivada parcial 1 e alpha * derivada parcial 2
+    step <- grad_step(alpha, x1, x2)
+    
+    
+    v1 <- (momentum * v1) + df_x1(x1, x2)
+    v2 <- (momentum * v2) + df_x2(x1, x2)
+    
+    # atualizo x1 e x2 com essa atualização de valor
+    x1 <- x1 - alpha * v1
+    x2 <- x2 - alpha * v2
+    
+    # histórico
+    hist[i, ] <- c(x1, x2)
+    
+  }
+  
+  return(list(
+    hist_min = hist,
+    x1_min = x1,
+    x2_min = x2
+  ))
+}
+
+```
+
+```{r}
+
+result_momento <- gradiente_momento(0.01, 0.9, 100, 0, 5)
+```
+
+```{r}
+
+# grade das curvas de nível
+grid <- expand.grid(
+  x1 = seq(-4, 4, by = 0.02),
+  x2 = seq(-4, 4, by = 0.02)
+) |>
+  as_tibble() |>
+  mutate(z = f(x1, x2))
+
+ggplot(grid, aes(x = x1, y = x2, z = z)) +
+  geom_contour_filled(bins = 30) +
+  
+  # trajetória do gradiente com momento
+  geom_path(
+    data = hist_df,
+    aes(x = x1, y = x2),
+    inherit.aes = FALSE,
+    color = "black",
+    linewidth = 0.8
+  ) +
+  geom_point(
+    data = hist_df,
+    aes(x = x1, y = x2),
+    inherit.aes = FALSE,
+    color = "black",
+    size = 1.5
+  ) +
+  
+  # início (X)
+  annotate(
+    "point",
+    x = hist_df$x1[1],
+    y = hist_df$x2[1],
+    shape = 4,
+    size = 4,
+    stroke = 1.2,
+    color = "black"
+  ) +
+  
+  # fim (●)
+  annotate(
+    "point",
+    x = hist_df$x1[nrow(hist_df)],
+    y = hist_df$x2[nrow(hist_df)],
+    shape = 16,
+    size = 3,
+    color = "black"
+  ) +
+  
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    fill = "f(x1,x2)",
+    title = "Curvas de nível com trajetória do gradiente com momento"
+  ) +
+  theme_minimal()
 
 
 ```
+
+Eita, o gradiente com momento foi para OUTRO mínimo local que não o do canto superior esquerdo.
 
 ## Letra H
 
