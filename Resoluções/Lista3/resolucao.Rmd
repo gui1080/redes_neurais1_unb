@@ -6,6 +6,10 @@ output:
 always_allow_html: true
 ---
 
+Guilherme Braga Pinto
+
+Janeiro/Fevereiro de 2026
+
 # Otimização de RNA
 
 Considerando:
@@ -27,7 +31,6 @@ f <- function(x1, x2){
 ```
 
 ```{r}
-
 
 # grade (ajuste o intervalo se quiser)
 x1 <- seq(-4, 4, length.out = 160)
@@ -260,7 +263,7 @@ ggplot(grid, aes(x = x1, y = x2, z = z)) +
     size = 1.5
   ) +
   
-  # início (X)
+  # início 
   annotate(
     "point",
     x = hist_df$x1[1],
@@ -271,7 +274,7 @@ ggplot(grid, aes(x = x1, y = x2, z = z)) +
     color = "black"
   ) +
   
-  # fim (●)
+  # fim 
   annotate(
     "point",
     x = hist_df$x1[nrow(hist_df)],
@@ -679,6 +682,144 @@ result_momento <- gradiente_momento(0.01, 0.9, 100, 0, 5)
 
 ```{r}
 
+hist_df <- as_tibble(result_momento$hist_min) |>
+  mutate(iter = row_number())
+
+# grade das curvas de nível
+grid <- expand.grid(
+  x1 = seq(-4, 4, by = 0.02),
+  x2 = seq(-4, 4, by = 0.02)
+) |>
+  as_tibble() |>
+  mutate(z = f(x1, x2))
+
+ggplot(grid, aes(x = x1, y = x2, z = z)) +
+  geom_contour_filled(bins = 30) +
+  
+  # trajetória do gradiente com momento
+  geom_path(
+    data = hist_df,
+    aes(x = x1, y = x2),
+    inherit.aes = FALSE,
+    color = "black",
+    linewidth = 0.8
+  ) +
+  geom_point(
+    data = hist_df,
+    aes(x = x1, y = x2),
+    inherit.aes = FALSE,
+    color = "black",
+    size = 1.5
+  ) +
+  
+  # início (X)
+  annotate(
+    "point",
+    x = hist_df$x1[1],
+    y = hist_df$x2[1],
+    shape = 4,
+    size = 4,
+    stroke = 1.2,
+    color = "black"
+  ) +
+  
+  annotate(
+    "point",
+    x = hist_df$x1[nrow(hist_df)],
+    y = hist_df$x2[nrow(hist_df)],
+    shape = 16,
+    size = 3,
+    color = "black"
+  ) +
+  
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    fill = "f(x1,x2)",
+    title = "Curvas de nível com trajetória do gradiente com momento"
+  ) +
+  theme_minimal()
+
+
+```
+
+Eita, o gradiente com momento foi para OUTRO mínimo local que não o do canto superior esquerdo.
+
+## Letra H
+
+Repetindo letra D, fazendo gradiente RMSProp
+
+```{r}
+
+# taxa de aprendizado "alpha" = 0.001
+# decaimento "r" entre 0 e 1 = 0.9
+# pequeno "e" constante = 0.0000001
+gradiente_rms_prop <- function(alpha, r, e, x1_init, x2_init){
+  
+  hist <- matrix(NA, nrow = n_passos, ncol = 2)
+  colnames(hist) <- c("x1", "x2")
+  
+  qtd_exec <- 0
+
+  # inicializo x1 e x2 com os iniciais
+  x1 <- x1_init
+  x2 <- x2_init
+  
+  # media exponencial
+  s1 <- 0
+  s2 <- 0
+  
+  # o loop segue enquanto n bate condição de parada
+  i = TRUE
+  
+  while (i == TRUE) {
+    
+    # calculo alpha * derivada parcial 1 e alpha * derivada parcial 2
+    step <- grad_step(alpha, x1, x2)
+    
+    # atualiza a media exponencial
+    s1 <- (r * s1) + ((1 - r) * (step$result_1 * step$result_1))
+    s2 <- (r * s2) + ((1 - r) * (step$result_2 * step$result_2))
+    
+    # atualizo x1 e x2 dado os s1 e s2
+    x1 <- x1 - (alpha * (step$result_1 / ( sqrt(s1) + e))) 
+    
+    x2 <- x2 - (alpha * (step$result_2 / ( sqrt(s2) + e))) 
+    
+    qtd_exec <- qtd_exec + 1
+    
+    # histórico
+    hist[i, ] <- c(x1, x2)
+    
+    # vou parar quando gradiente estiver perto de zero
+    if ( (sqrt(sum(step$result_1^2)) < e )|| (sqrt(sum(step$result_2^2)) < e)){
+      i = FALSE
+    }
+    
+  }
+  
+  print(qtd_exec)
+  
+  return(list(
+    hist_min = hist,
+    x1_min = x1,
+    x2_min = x2
+  ))
+}
+
+```
+
+```{r}
+
+result_rms_prop <- gradiente_rms_prop(0.001, 0.9, 0.0000001, 0, 5)
+```
+
+```{r}
+
+hist_df <- as_tibble(result_rms_prop$hist_min) |>
+  mutate(iter = row_number())
+
 # grade das curvas de nível
 grid <- expand.grid(
   x1 = seq(-4, 4, by = 0.02),
@@ -732,24 +873,14 @@ ggplot(grid, aes(x = x1, y = x2, z = z)) +
     x = "x1",
     y = "x2",
     fill = "f(x1,x2)",
-    title = "Curvas de nível com trajetória do gradiente com momento"
+    title = "Curvas de nível com trajetória do gradiente RMS Prop"
   ) +
   theme_minimal()
 
 
 ```
 
-Eita, o gradiente com momento foi para OUTRO mínimo local que não o do canto superior esquerdo.
-
-## Letra H
-
-Repetindo letra D, fazendo gradiente RMSProp
-
-```{r}
-
-
-
-```
+Eita que o RMS Prop foi SECO no minimo local de MENOR valor.
 
 ## Letra I
 
@@ -757,13 +888,151 @@ Repetindo letra D, fazendo gradiente Adam
 
 ```{r}
 
+# taxa de aprendizado "alpha" = 0.001
+# decaimento "r1" e "r2" entre 0 e 1 -> nesse exemplo 0.9 e 0.99
+# pequeno "e" constante = 0.0000001
+gradiente_adam <- function(alpha, r1, r2, e, x1_init, x2_init){
+  
+  hist <- matrix(NA, nrow = n_passos, ncol = 2)
+  colnames(hist) <- c("x1", "x2")
+  
+  qtd_exec <- 0
 
+  # inicializo x1 e x2 com os iniciais
+  x1 <- x1_init
+  x2 <- x2_init
+  
+  # primeiro momento
+  m1 <- 0
+  m2 <- 0
+  
+  # segundo momento
+  v1 <- 0
+  v2 <- 0
+  
+  # o loop segue enquanto n bate condição de parada
+  i = TRUE
+  
+  while (i == TRUE) {
+    
+    # calculo alpha * derivada parcial 1 e alpha * derivada parcial 2
+    step <- grad_step(alpha, x1, x2)
+    
+    # atualiza o primeiro momento
+    m1 <- (r1 * m1) + ((1 - r1) * step$result_1)
+    m2 <- (r1 * m2) + ((1 - r1) * step$result_2)
+    
+    # atualiza o segundo momento
+    v1 <- (r2 * v1) + ((1 - r2) * (step$result_1 * step$result_1))
+    v2 <- (r2 * v2) + ((1 - r2) * (step$result_2 * step$result_2))
+    
+    # correção de viés
+    #m1 <- m1/1-r1
+    #m2 <- m2/1-r1
+    
+    #v1 <- v1/1-r2
+    #v2 <- v2/1-r2
+    
+    # atualizo x1 e x2 dado os s1 e s2
+    x1 <- x1 - (alpha * (m1/(sqrt(v1)+e))) 
+    x2 <- x2 - (alpha * (m2/(sqrt(v2)+e)))
+    
+    qtd_exec <- qtd_exec + 1
+    
+    # histórico
+    hist[i, ] <- c(x1, x2)
+    
+    # vou parar quando gradiente estiver perto de zero
+    if ( qtd_exec == 5000 ){
+      i = FALSE
+    }
+    
+  }
+  
+  print(qtd_exec)
+  
+  return(list(
+    hist_min = hist,
+    x1_min = x1,
+    x2_min = x2
+  ))
+}
 
 ```
 
+```{r}
+
+result_adam <- gradiente_adam(0.001, 0.9, 0.99, 0.0000001, 0, 5)
+```
+
+```{r}
+
+hist_df <- as_tibble(result_adam$hist_min) |>
+  mutate(iter = row_number())
+
+# grade das curvas de nível
+grid <- expand.grid(
+  x1 = seq(-4, 4, by = 0.02),
+  x2 = seq(-4, 4, by = 0.02)
+) |>
+  as_tibble() |>
+  mutate(z = f(x1, x2))
+
+ggplot(grid, aes(x = x1, y = x2, z = z)) +
+  geom_contour_filled(bins = 30) +
+  
+  # trajetória do gradiente com momento
+  geom_path(
+    data = hist_df,
+    aes(x = x1, y = x2),
+    inherit.aes = FALSE,
+    color = "black",
+    linewidth = 0.8
+  ) +
+  geom_point(
+    data = hist_df,
+    aes(x = x1, y = x2),
+    inherit.aes = FALSE,
+    color = "black",
+    size = 1.5
+  ) +
+  
+  # início (X)
+  annotate(
+    "point",
+    x = hist_df$x1[1],
+    y = hist_df$x2[1],
+    shape = 4,
+    size = 4,
+    stroke = 1.2,
+    color = "black"
+  ) +
+  
+  # fim (●)
+  annotate(
+    "point",
+    x = hist_df$x1[nrow(hist_df)],
+    y = hist_df$x2[nrow(hist_df)],
+    shape = 16,
+    size = 3,
+    color = "black"
+  ) +
+  
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    fill = "f(x1,x2)",
+    title = "Curvas de nível com trajetória do gradiente Adam"
+  ) +
+  theme_minimal()
+```
+
+Resumindo, Adam e RMS Prop foram mais brabos.
+
 ## Letra J
 
-Grafico dos passos nas letras d, g, h, i
+Grafico dos passos nas letras d, g, h, i tudo junto.
 
 ```{r}
 
