@@ -150,12 +150,13 @@ print(b)
 
 gradiente_min <- function(alpha, n_passos, x1_init, x2_init){
   
-  hist <- matrix(NA, nrow = n_passos, ncol = 2)
-  colnames(hist) <- c("x1", "x2")
+  hist_temp <- list()
 
   # inicializo x1 e x2 com os iniciais
   x1 <- x1_init
   x2 <- x2_init
+  
+  hist_temp[[1]] <- c(x1, x2)
   
   for (i in 1:n_passos) {
     
@@ -167,9 +168,12 @@ gradiente_min <- function(alpha, n_passos, x1_init, x2_init){
     x2 <- x2 - step$result_2
     
     # histórico
-    hist[i, ] <- c(x1, x2)
+    hist_temp[[i+1]] <- c(x1, x2)
     
   }
+  
+  hist <- do.call(rbind, hist_temp)
+  colnames(hist) <- c("x1", "x2")
   
   return(list(
     hist_min = hist,
@@ -638,8 +642,7 @@ O método do gradiente com momento incorpora uma média exponencial dos gradient
 # paramentro momento entre 0 e 1
 gradiente_momento <- function(alpha, momentum, n_passos, x1_init, x2_init){
   
-  hist <- matrix(NA, nrow = n_passos, ncol = 2)
-  colnames(hist) <- c("x1", "x2")
+  hist_temp <- list()
 
   # inicializo x1 e x2 com os iniciais
   x1 <- x1_init
@@ -647,6 +650,8 @@ gradiente_momento <- function(alpha, momentum, n_passos, x1_init, x2_init){
   
   v1 <- 0
   v2 <- 0
+  
+  hist_temp[[1]] <- c(x1, x2)
   
   for (i in 1:n_passos) {
     
@@ -662,9 +667,12 @@ gradiente_momento <- function(alpha, momentum, n_passos, x1_init, x2_init){
     x2 <- x2 - alpha * v2
     
     # histórico
-    hist[i, ] <- c(x1, x2)
+    hist_temp[[i+1]] <- c(x1, x2)
     
   }
+  
+  hist <- do.call(rbind, hist_temp)
+  colnames(hist) <- c("x1", "x2")
   
   return(list(
     hist_min = hist,
@@ -757,21 +765,22 @@ Repetindo letra D, fazendo gradiente RMSProp
 # pequeno "e" constante = 0.0000001
 gradiente_rms_prop <- function(alpha, r, e, x1_init, x2_init){
   
-  hist <- matrix(NA, nrow = n_passos, ncol = 2)
-  colnames(hist) <- c("x1", "x2")
-  
-  qtd_exec <- 0
+  hist_temp <- list()
+
+  qtd_exec <- 1
 
   # inicializo x1 e x2 com os iniciais
   x1 <- x1_init
   x2 <- x2_init
+  
+  hist_temp[[qtd_exec]] <- c(x1, x2)
   
   # media exponencial
   s1 <- 0
   s2 <- 0
   
   # o loop segue enquanto n bate condição de parada
-  i = TRUE
+  i <- TRUE
   
   while (i == TRUE) {
     
@@ -790,16 +799,19 @@ gradiente_rms_prop <- function(alpha, r, e, x1_init, x2_init){
     qtd_exec <- qtd_exec + 1
     
     # histórico
-    hist[i, ] <- c(x1, x2)
+    hist_temp[[qtd_exec]] <- c(x1, x2)
     
     # vou parar quando gradiente estiver perto de zero
     if ( (sqrt(sum(step$result_1^2)) < e )|| (sqrt(sum(step$result_2^2)) < e)){
-      i = FALSE
+      i <- FALSE
     }
     
   }
   
   print(qtd_exec)
+  
+  hist <- do.call(rbind, hist_temp)
+  colnames(hist) <- c("x1", "x2")
   
   return(list(
     hist_min = hist,
@@ -880,7 +892,7 @@ ggplot(grid, aes(x = x1, y = x2, z = z)) +
 
 ```
 
-Eita que o RMS Prop foi SECO no minimo local de MENOR valor.
+Eita que o RMS Prop foi SECO no minimo local.
 
 ## Letra I
 
@@ -893,10 +905,9 @@ Repetindo letra D, fazendo gradiente Adam
 # pequeno "e" constante = 0.0000001
 gradiente_adam <- function(alpha, r1, r2, e, x1_init, x2_init){
   
-  hist <- matrix(NA, nrow = n_passos, ncol = 2)
-  colnames(hist) <- c("x1", "x2")
+  hist_temp <- list()
   
-  qtd_exec <- 0
+  qtd_exec <- 1
 
   # inicializo x1 e x2 com os iniciais
   x1 <- x1_init
@@ -940,16 +951,19 @@ gradiente_adam <- function(alpha, r1, r2, e, x1_init, x2_init){
     qtd_exec <- qtd_exec + 1
     
     # histórico
-    hist[i, ] <- c(x1, x2)
+    hist_temp[[qtd_exec]] <- c(x1, x2)
     
     # vou parar quando gradiente estiver perto de zero
-    if ( qtd_exec == 5000 ){
+    if ( (sqrt(sum(step$result_1^2)) < e )|| (sqrt(sum(step$result_2^2)) < e)){
       i = FALSE
     }
     
   }
   
   print(qtd_exec)
+  
+  hist <- do.call(rbind, hist_temp)
+  colnames(hist) <- c("x1", "x2")
   
   return(list(
     hist_min = hist,
@@ -1028,7 +1042,7 @@ ggplot(grid, aes(x = x1, y = x2, z = z)) +
   theme_minimal()
 ```
 
-Resumindo, Adam e RMS Prop foram mais brabos.
+Resumindo, Adam e RMS Prop foram mais interessantes. Foram seco no ponto.
 
 ## Letra J
 
@@ -1037,5 +1051,75 @@ Grafico dos passos nas letras d, g, h, i tudo junto.
 ```{r}
 
 
+hist_all <- bind_rows(
+  as_tibble(result_adam$hist_min) |>
+    mutate(algoritmo = "Adam"),
+
+  as_tibble(result_rms_prop$hist_min) |>
+    mutate(algoritmo = "RMSProp"),
+
+  as_tibble(result_momento$hist_min) |>
+    mutate(algoritmo = "Momento"),
+
+  as_tibble(result4$hist_min) |>
+    mutate(algoritmo = "Gradiente")
+) |>
+  group_by(algoritmo) |>
+  mutate(iter = row_number()) |>
+  ungroup() |>
+  filter(is.finite(x1), is.finite(x2))
 
 ```
+
+```{r}
+
+grid <- expand.grid(
+  x1 = seq(-4, 4, by = 0.02),
+  x2 = seq(-4, 4, by = 0.02)
+) |>
+  as_tibble() |>
+  mutate(z = f(x1, x2))
+
+```
+
+```{r fig.width=10, fig.height=8}
+
+ggplot(grid, aes(x = x1, y = x2, z = z)) +
+  geom_contour_filled(bins = 30) +
+
+  geom_path(
+    data = hist_all,
+    aes(x = x1, y = x2, group = algoritmo, color = algoritmo),
+    inherit.aes = FALSE,
+    linewidth = 0.9
+  ) +
+
+  geom_point(
+    data = hist_all |> group_by(algoritmo) |> slice(1),
+    aes(x = x1, y = x2, color = algoritmo),
+    inherit.aes = FALSE,
+    shape = 4,
+    size = 3,
+    stroke = 1.2
+  ) +
+
+  geom_point(
+    data = hist_all |> group_by(algoritmo) |> slice(n()),
+    aes(x = x1, y = x2, color = algoritmo),
+    inherit.aes = FALSE,
+    shape = 16,
+    size = 3
+  ) +
+  coord_equal() +
+  labs(
+    x = "x1",
+    y = "x2",
+    fill = "f(x1,x2)",
+    color = "Algoritmo",
+    title = "Curvas de nível com trajetórias de diferentes métodos de gradiente"
+  ) +
+  theme_minimal()
+
+```
+
+Adam \> RMSProp \> Gradiente Normal \> Gradiente com momento
