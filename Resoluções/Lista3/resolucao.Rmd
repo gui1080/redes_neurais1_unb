@@ -779,13 +779,11 @@ gradiente_rms_prop <- function(alpha, r, e, x1_init, x2_init){
   s1 <- 0
   s2 <- 0
   
-  # o loop segue enquanto n bate condição de parada
-  i <- TRUE
-  
-  while (i == TRUE) {
+  while (TRUE) {
     
-    # calculo alpha * derivada parcial 1 e alpha * derivada parcial 2
-    step <- grad_step(alpha, x1, x2)
+    # calculo derivada parcial 1 e derivada parcial 2
+    # passo alpha = 1 para reusar a mesma função, é mais fácil
+    step <- grad_step(1, x1, x2)
     
     # atualiza a media exponencial
     s1 <- (r * s1) + ((1 - r) * (step$result_1 * step$result_1))
@@ -802,8 +800,14 @@ gradiente_rms_prop <- function(alpha, r, e, x1_init, x2_init){
     hist_temp[[qtd_exec]] <- c(x1, x2)
     
     # vou parar quando gradiente estiver perto de zero
-    if ( (sqrt(sum(step$result_1^2)) < e )|| (sqrt(sum(step$result_2^2)) < e)){
-      i <- FALSE
+    if ( (sqrt(sum(step$result_1^2)) < e ) && (sqrt(sum(step$result_2^2)) < e)){
+      break
+    }
+    
+    # em caso de erro/divergir, faço só as iterações máximas!
+    # nesse caso deixei esse valor hardcoded
+    if (qtd_exec > 10000) {
+      break
     }
     
   }
@@ -924,10 +928,11 @@ gradiente_adam <- function(alpha, r1, r2, e, x1_init, x2_init){
   # o loop segue enquanto n bate condição de parada
   i = TRUE
   
-  while (i == TRUE) {
+  while (TRUE) {
     
-    # calculo alpha * derivada parcial 1 e alpha * derivada parcial 2
-    step <- grad_step(alpha, x1, x2)
+    # calculo derivada parcial 1 e derivada parcial 2
+    # novamente vou economizar e usar a mesma função de antes com alpha = 1
+    step <- grad_step(1, x1, x2)
     
     # atualiza o primeiro momento
     m1 <- (r1 * m1) + ((1 - r1) * step$result_1)
@@ -954,8 +959,14 @@ gradiente_adam <- function(alpha, r1, r2, e, x1_init, x2_init){
     hist_temp[[qtd_exec]] <- c(x1, x2)
     
     # vou parar quando gradiente estiver perto de zero
-    if ( (sqrt(sum(step$result_1^2)) < e )|| (sqrt(sum(step$result_2^2)) < e)){
-      i = FALSE
+    if ( (sqrt(sum(step$result_1^2)) < e ) && (sqrt(sum(step$result_2^2)) < e)){
+      break
+    }
+    
+    # em caso de erro/divergir, faço só as iterações máximas!
+    # nesse caso deixei esse valor hardcoded
+    if (qtd_exec > 10000) {
+      break
     }
     
   }
