@@ -1,0 +1,131 @@
+---
+title: "Resolução Lista 4"
+output: html_document
+---
+
+# CNN do Zero
+
+A lista 4 pede para fazer uma rede neural convolucional para acertar o sexo de um indivíduo dado a imagem de sua digital. É disponibilizado um dataset de 400 imagens.
+
+*"Nosso objetivo, portanto, é maximizar a probabilidade de acerto do modelo em imagens não utilizadas no processo de treinamento."*
+
+## Mas como eu decido o tamanho da minha rede?
+
+Eu sempre tive essa dúvida: como eu começo a projetar a minha rede? Quantas camadas intermediárias? Camada de ativação? Quantos neurônios? Pesquisei e eu preciso responder de forma objetiva baseado no que eu sequer quero atingir ao final da minha implementação.
+
+A Lista 4 menciona algumas variáveis que fixam a natureza do meu problema:
+
+-   O dataset que vou usar são de digitais de 400 pessoas. Dados que parecem ter padrões repetitivos, não imagino que sejam imagens enormes e coloridas. Será que 400 não é pouco? Não daria para fazer uma rede enorme. Seria o caso de eu ver no livro do Ian Goodfellow uma arquitetura pequena e genérica para ver se é um pontapé inicial bom.
+
+-   É um problema de classificação binária: isso meio que me direciona para uma sigmoid simples e uma perda binária tipo binary cross-entropy, que é meio típica para esse tipo de coisa.
+
+-   Uma CNN é capaz de lidar com abstrações altas. Não precisaria de muitas camadas que façam muitas convoluções para identificar features em um rosto como olhos e bocas, seriam coisas mais locais como padrões na digital de uma pessoa. Lógico, preciso de algumas camadas, mas tudo me indica que não vou fazer uma rede enorme. Isso me faz lembrar da matéria de redes 2 (que eu fiz antes de redes 1) em que vimos modelos de CNN mais complexos do livro [Understanding Deep Learning](https://udlbook.github.io/udlbook/?hl=en).
+
+![](images/clipboard-3720174895.png)
+
+Alexnet era uma rede de 8 camadas escondidas com ativação ReLu (primeiros 5 são convolucionais e o resto *fully connected*) com 60 bilhões de parâmetros no total. Não acho que seja inteligente chegar perto disso, então tenho mapeado para qual caminho não ir.
+
+Para um toy example de classificação de números do dataset MNIST, eu tenho algo mais parecido com [isso aqui](https://www.3blue1brown.com/lessons/gradient-descent):
+
+\
+![](images/clipboard-3832319638.png)
+
+O que me reforça, uns 3 blocos convolucionais f*ully connected* podem ser o ponto de partida que eu quero. Não que essa rede seja uma **CNN** tradicional, mas eu preciso de um chute inicial.
+
+Vou usar o bloco de camada convolucional padrão que tem no livro do Ian Goodfellow:
+
+![](images/clipboard-424492906.png)
+
+Que parece com algo assim: Convolução, Relu, Pooling.
+
+Quem erra rápido pode consertar rápido, então hora de ver os dados.
+
+## Dataset
+
+O link original é [esse](https://1drv.ms/f/s!Aiqt4i7wEOAe24dzk9tyQQ) mas eu vou commitar no github. Está na pasta **Dados**.
+
+*"Os nomes dos arquivos do conjunto de teste estão no formato “Sexo_Indice” (por exemplo, “F_0001” corresponde a primeira foto de uma pessoa do sexo feminino). Para viabilizar o exercício, o sexo das imagens do conjunto de teste não foi disponibilizado."*
+
+Uma imagem do dataset parece assim:
+
+\
+![](images/clipboard-430850163.bmp)
+
+![](images/clipboard-3066917587.png)
+
+Ela tem 96 × 103 pixels e é um BMP em RGB, tenho a impressão que o certo é manipular isso em *grayscale*.
+
+```{r}
+
+
+```
+
+## Tentando fazer minha rede
+
+Arquitetura base:
+
+-   Entra imagem
+
+    -   1 x 93 x 103
+
+-   Bloco 1
+
+    -   Convolução 2d -\> 32 filtros, *padding* constante
+
+    -   Relu
+
+    -   Maxpool 2x2
+
+    -   32 x 93/2 x 103/2 = 32 x 48 x 51
+
+-   Bloco 2
+
+    -   Convolução 2d -\> 64 filtros, *padding* constante
+
+    -   Relu
+
+    -   Maxpool 2x2
+
+    -   64 x 48/2 x 51/2 = 64 x 24 x 25
+
+-   Bloco 3
+
+    -   Convolução 2d -\> 128 filtros, *padding* constante
+
+    -   Relu
+
+    -   Maxpool 2x2
+
+    -   128 x 24/2 x 25/2 = 128 x 12 x 12
+
+-   Camada Densa
+
+    -   ReLU
+
+    -   128
+
+-   Camada Densa
+
+    -   Sigmoid
+
+    -   1
+
+Suponho que é um bom sinal isso convergir no treino. E que o treino tenha um tempo razoável. Underfitting seria o final forte de que essa rede não é complexa o suficiente para abstrair o problema. Mas me baseando nos problemas prévios observados, pode ser um bom ponto de partida.
+
+```{r}
+
+
+```
+
+## Otimizando
+
+*"Use as ferramentas disponíveis para melhorar o desempenho do modelo, incluindo, entre outras, a **criação de dados sintéticos**, computação em nuvem, dropout, batch normalization, boosting, bagging e autoML."*
+
+Dados sintéticos veio no pedido do exercício em negrito, e realmente, parece que tem pouco dado...
+
+### Dados sintéticos
+
+```{r}
+
+
+```
