@@ -59,7 +59,12 @@ Essa imagem já está em *grayscale*?
 
 ```{r}
 
-install.packages("imager")
+#py_config()
+```
+
+```{r}
+
+#install.packages("imager")
 
 
 ```
@@ -128,7 +133,7 @@ Mas essa forma de ler aqui funciona!
 
 ```{r}
 
-install.packages("magick")
+#install.packages("magick")
 library(magick)
 
 ```
@@ -196,7 +201,8 @@ ler_bmp_gray_matrix <- function(path, width = 96, height = 103) {
 n <- nrow(dados)
 
 X <- array(0, dim = c(n, 103, 96, 1))  # (samples, height, width, channels)
-y <- ifelse(dados$sexo == "M", 1, 0)
+y <- ifelse(dados$sexo == "M", 1, 0) # (minhas classes, 0 Masculino, 1 Feminino)
+y <- as.numeric(y)
 
 for (i in seq_len(n)) {
   if (i %% 50 == 0) message("Lendo ", i, "/", n)
@@ -275,58 +281,173 @@ O dado tá ai.
 Suponho que é um bom sinal isso convergir no treino. E que o treino tenha um tempo razoável. Underfitting seria o final forte de que essa rede não é complexa o suficiente para abstrair o problema. Mas me baseando nos problemas prévios observados, pode ser um bom ponto de partida.
 
 ```{r}
+#install.packages("keras3")
+library(keras3)
+library(reticulate)
 
-install.packages("keras")
-library(keras)
 ```
 
 ```{r}
 
-model <- keras_model_sequential(name = "cnn_fingerprint")
+#install_keras()
+```
 
-# Bloco 1 (defina input_shape aqui)
-model$add(layer_conv_2d(
-  filters = 32, kernel_size = c(3, 3),
-  padding = "same", activation = "relu",
-  input_shape = c(93, 103, 1),
-  name = "conv1"
-))
-model$add(layer_max_pooling_2d(pool_size = c(2, 2), name = "pool1"))
+```{r}
 
-# Bloco 2
-model$add(layer_conv_2d(
-  filters = 64, kernel_size = c(3, 3),
-  padding = "same", activation = "relu",
-  name = "conv2"
-))
-model$add(layer_max_pooling_2d(pool_size = c(2, 2), name = "pool2"))
 
-# Bloco 3
-model$add(layer_conv_2d(
-  filters = 128, kernel_size = c(3, 3),
-  padding = "same", activation = "relu",
-  name = "conv3"
-))
-model$add(layer_max_pooling_2d(pool_size = c(2, 2), name = "pool3"))
-
-# Cabeça
-model$add(layer_flatten(name = "flatten"))
-model$add(layer_dense(units = 128, activation = "relu", name = "dense1"))
-model$add(layer_dense(units = 1, activation = "sigmoid", name = "out"))
-
-model$compile(
-  optimizer = optimizer_adam(learning_rate = 1e-3),
-  loss = loss_binary_crossentropy(),
-  metrics = list(metric_binary_accuracy(name = "accuracy"))
+# Define the model using the layers list approach
+model <- keras_model_sequential(
+  layers = list(
+    # Input Layer
+    layer_input(shape = c(103, 96, 1)),
+    
+    # Bloco 1
+    layer_conv_2d(filters = 32, kernel_size = c(3, 3), padding = "same", 
+                  activation = "relu", name = "conv1"),
+    layer_max_pooling_2d(pool_size = c(2, 2), name = "pool1"),
+    
+    # Bloco 2
+    layer_conv_2d(filters = 64, kernel_size = c(3, 3), padding = "same", 
+                  activation = "relu", name = "conv2"),
+    layer_max_pooling_2d(pool_size = c(2, 2), name = "pool2"),
+    
+    # Bloco 3
+    layer_conv_2d(filters = 128, kernel_size = c(3, 3), padding = "same", 
+                  activation = "relu", name = "conv3"),
+    layer_max_pooling_2d(pool_size = c(2, 2), name = "pool3"),
+    
+    # Cabeça (Dense Head)
+    layer_flatten(name = "flatten"),
+    layer_dense(units = 128, activation = "relu", name = "dense1"),
+    layer_dense(units = 1, activation = "sigmoid", name = "out")
+  ),
+  name = "cnn_fingerprint"
 )
 
-summary(model)
+# Compile using the modern string identifiers
+model %>% compile(
+  optimizer = optimizer_adam(learning_rate = 1e-3),
+  loss = "binary_crossentropy",
+  metrics = list("accuracy")
+)
 
+# Check the architecture
+summary(model)
 ```
 
 ```{r}
 
 # treinando
+
+set.seed(123)
+
+n <- dim(X)[1] # são 4000 elementos, ou é pra ser
+idx <- sample.int(n) # idx agora ta bagunçado
+
+print(n)
+```
+
+```{r}
+
+dim(X)
+table(y)
+```
+
+```{r}
+
+# split 80/20 - treino e validação
+n_train <- floor(0.8 * n)
+train_idx <- idx[1:n_train]
+val_idx   <- idx[(n_train + 1):n]
+
+X_train <- as.array(X[train_idx, , , , drop = FALSE])
+X_val   <- as.array(X[val_idx,   , , , drop = FALSE])
+
+y_train <- as.array(y[train_idx])
+y_val   <- as.array(y[val_idx])
+```
+
+```{r}
+
+np <- import("numpy")
+
+# X: numpy float32 (ndarray)
+X_train_np <- np$array(X_train, dtype = "float32")
+X_val_np   <- np$array(X_val,   dtype = "float32")
+
+# y: numpy float32 (ou int32) com shape (n,)
+y_train_np <- np$array(as.numeric(y_train), dtype = "float32")
+y_val_np   <- np$array(as.numeric(y_val),   dtype = "float32")
+
+tf <- import("tensorflow")
+
+X_train_tf <- tf$convert_to_tensor(X_train_np, dtype = tf$float32)
+X_val_tf   <- tf$convert_to_tensor(X_val_np,   dtype = tf$float32)
+
+y_train_tf <- tf$convert_to_tensor(y_train_np, dtype = tf$float32)
+y_val_tf   <- tf$convert_to_tensor(y_val_np,   dtype = tf$float32)
+
+
+```
+
+```{r}
+
+# base ta desbalanceada 
+# pesos por classe
+tab <- table(y_train)
+
+w0 <- sum(tab) / (2 * tab["0"])
+w1 <- sum(tab) / (2 * tab["1"])
+
+sample_weight <- ifelse(y_train == 0, w0, w1)
+sample_weight <- as.numeric(sample_weight)
+
+```
+
+```{r}
+
+# callbacks básicos
+cb <- list(
+  callback_early_stopping(monitor = "val_loss", patience = 8, restore_best_weights = TRUE),
+  callback_reduce_lr_on_plateau(monitor = "val_loss", factor = 0.5, patience = 3, min_lr = 1e-6)
+)
+
+```
+
+y_train: rótulos (0 = F, 1 = M)
+
+```{r}
+
+# 1. Force X back to a standard R array (strips any TensorFlow 'EagerTensor' status)
+X_train_final <- as.array(X_train)
+
+# 2. Keras 3 often expects y to be a 2D matrix (samples, 1) rather than a flat vector
+y_train_final <- as.matrix(as.numeric(y_train))
+
+# 3. Do the same for validation if you have it
+X_val_final <- as.array(X_val)
+y_val_final <- as.matrix(as.numeric(y_val))
+
+# Now try the fit
+history <- model %>% fit(
+  x = X_train_final, # as.array
+  y = y_train_final, # as.matrix
+  validation_data = if(exists("X_val_final")) list(X_val_final, y_val_final) else NULL,
+  epochs = 20,
+  batch_size = 32
+)
+
+```
+
+![](images/clipboard-1307780301.png)
+
+Legal, funcionou! Levei pancada demais dos datatypes do R, achei uma bagunça. Mas essa rede parece estar com overfitting, não? Na altura da epoch 10 que a validation loss sobe e a acurácia vai subindo até 1.
+
+E se a minha rede estiver complexa demais? Vou simplificar.
+
+```{r}
+
+
 ```
 
 ## Otimizando
